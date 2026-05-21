@@ -3,16 +3,25 @@ import { NextRequest, NextResponse } from "next/server";
 /**
  * Protection par mot de passe (HTTP Basic Auth).
  *
- * Configurez dans les variables d'environnement de l'hebergeur :
+ * Variables d'environnement (a configurer sur l'hebergeur) :
  *   - BASIC_AUTH_PASSWORD : le mot de passe (obligatoire pour activer la protection)
- *   - BASIC_AUTH_USER     : un identifiant (optionnel ; si absent, tout identifiant est accepte)
+ *   - BASIC_AUTH_USER     : un identifiant (optionnel)
  *
- * Si BASIC_AUTH_PASSWORD n'est pas defini (developpement local), l'acces reste libre.
- *
- * Seul l'outil B-Roll Finder (/broll) et ses routes API (/api/...) sont proteges.
- * La page d'accueil ("/") reste publique (voir "matcher" ci-dessous).
+ * Seul l'outil "/broll" et les routes "/api/..." sont proteges.
+ * La page d'accueil "/" et tout le reste restent PUBLICS.
+ * La decision est prise dans la fonction (le config.matcher seul n'est pas fiable).
  */
 export function proxy(req: NextRequest) {
+  const path = req.nextUrl.pathname;
+
+  const isProtected =
+    path === "/broll" ||
+    path.startsWith("/broll/") ||
+    path.startsWith("/api/");
+
+  // Tout ce qui n'est pas l'outil ou son API est public (accueil compris).
+  if (!isProtected) return NextResponse.next();
+
   const expectedPass = process.env.BASIC_AUTH_PASSWORD || "";
   const expectedUser = process.env.BASIC_AUTH_USER || "";
 
@@ -42,7 +51,6 @@ export function proxy(req: NextRequest) {
   });
 }
 
-// Protege l'outil et son API ; la page d'accueil et les fichiers statiques restent publics.
 export const config = {
   matcher: ["/broll", "/broll/:path*", "/api/:path*"],
 };
