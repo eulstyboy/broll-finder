@@ -16,7 +16,6 @@ import {
 import jsPDF from "jspdf";
 import JSZip from "jszip";
 
-// --- Constantes ---
 const PLATFORMS = [
   { id: "pexels", name: "Pexels" },
   { id: "pixabay", name: "Pixabay" },
@@ -40,7 +39,6 @@ const ROLES = [
   { id: "experimental", name: "Expérimental" },
 ];
 
-// --- Helpers ---
 const splitTokens = (q: string): string[] =>
   q
     .split(",")
@@ -96,7 +94,7 @@ type PdfMeta = {
   duration: string;
 };
 
-export default function Home() {
+export default function Tool() {
   const [script, setScript] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -114,10 +112,8 @@ export default function Home() {
   const [role, setRole] = useState("motion");
   const [model, setModel] = useState("claude-sonnet-4-6");
 
-  // Mots-cles desactives par requete : cle "pIdx-qIdx" -> indices desactives
   const [disabledTokens, setDisabledTokens] = useState<Record<string, number[]>>({});
 
-  // Popup d'informations du storyboard
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
   const [pdfMeta, setPdfMeta] = useState<PdfMeta>({
     projectTitle: "",
@@ -226,7 +222,6 @@ export default function Home() {
     }
   };
 
-  // --- Gestion des mots-cles ---
   const isTokenActive = (key: string, idx: number) =>
     !(disabledTokens[key] || []).includes(idx);
 
@@ -240,7 +235,6 @@ export default function Home() {
     });
   };
 
-  // Requete effective : uniquement les mots-cles actifs
   const activeQuery = (pIdx: number, qIdx: number, q: string): string => {
     const key = `${pIdx}-${qIdx}`;
     const tokens = splitTokens(q);
@@ -248,7 +242,6 @@ export default function Home() {
     return (active.length > 0 ? active : tokens).join(", ");
   };
 
-  // --- Export PDF : storyboard A4 paysage, grille 2x2 ---
   const exportPDF = async () => {
     if (results.length === 0) return;
     setIsExporting(true);
@@ -274,7 +267,6 @@ export default function Home() {
         const slot = i % PER;
         if (i > 0 && slot === 0) doc.addPage();
 
-        // Bandeau de page (titre projet + infos)
         if (slot === 0) {
           doc.setFont("helvetica", "bold");
           doc.setFontSize(15);
@@ -308,7 +300,6 @@ export default function Home() {
         const x = M + col * (cellW + GAP);
         const y = M + HEAD + row * (cellH + GAP);
 
-        // Bandeau d'en-tete : numero de plan, HORS de l'image
         doc.setFillColor(255, 255, 255);
         doc.rect(x, y, cellW, HEADER_H, "F");
         doc.setFont("helvetica", "bold");
@@ -319,19 +310,16 @@ export default function Home() {
         doc.setLineWidth(0.3);
         doc.line(x, y + HEADER_H, x + cellW, y + HEADER_H);
 
-        // Zone image (letterbox sombre)
         const imgY = y + HEADER_H;
         doc.setFillColor(15, 23, 42);
         doc.rect(x, imgY, cellW, imgBoxH, "F");
 
-        // Visuel correspondant a la requete SELECTIONNEE
         const selectedQuery = selectedImages[i];
         let mk: { base64?: string; remoteUrl?: string } | undefined;
         if (selectedQuery !== undefined) {
           const qIdx = results[i].queries.indexOf(selectedQuery);
           if (qIdx >= 0) mk = mockups[`${i}-${qIdx}`];
         }
-        // Repli : premier visuel disponible pour ce plan
         if (!mk || (!mk.base64 && !mk.remoteUrl)) {
           const fk = Object.keys(mockups).find(
             (k) =>
@@ -371,7 +359,6 @@ export default function Home() {
           });
         }
 
-        // Bandeau texte : phrase du plan
         const ty = imgY + imgBoxH;
         doc.setFillColor(255, 255, 255);
         doc.rect(x, ty, cellW, TEXT_H, "F");
@@ -385,7 +372,6 @@ export default function Home() {
         }
         doc.text(shown, x + 4, ty + 6);
 
-        // Contour de la case
         doc.setDrawColor(226, 232, 240);
         doc.setLineWidth(0.3);
         doc.rect(x, y, cellW, cellH, "S");
@@ -424,7 +410,7 @@ export default function Home() {
     <div className="min-h-screen w-full bg-slate-50 text-slate-900">
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/85 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
-          <div className="flex items-center gap-3">
+          <a href="/" className="flex items-center gap-3">
             <div className="grid h-9 w-9 place-items-center rounded-lg bg-blue-600 text-white">
               <Clapperboard size={18} />
             </div>
@@ -434,7 +420,7 @@ export default function Home() {
               </h1>
               <p className="text-xs text-slate-500">Du script au storyboard</p>
             </div>
-          </div>
+          </a>
 
           {results.length > 0 && (
             <div className="flex items-center gap-2">

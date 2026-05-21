@@ -8,9 +8,9 @@ import { NextRequest, NextResponse } from "next/server";
  *   - BASIC_AUTH_USER     : un identifiant (optionnel ; si absent, tout identifiant est accepte)
  *
  * Si BASIC_AUTH_PASSWORD n'est pas defini (developpement local), l'acces reste libre.
- * Protege a la fois les pages et les routes API (/api/...).
  *
- * Next.js 16 : ce fichier remplace l'ancien "middleware.ts" (convention "proxy").
+ * Seul l'outil B-Roll Finder (/broll) et ses routes API (/api/...) sont proteges.
+ * La page d'accueil ("/") reste publique (voir "matcher" ci-dessous).
  */
 export function proxy(req: NextRequest) {
   const expectedPass = process.env.BASIC_AUTH_PASSWORD || "";
@@ -42,7 +42,7 @@ export function proxy(req: NextRequest) {
   });
 }
 
-// Applique la protection partout sauf aux fichiers statiques de Next.js.
+// Protege l'outil et son API ; la page d'accueil et les fichiers statiques restent publics.
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/broll", "/broll/:path*", "/api/:path*"],
 };
