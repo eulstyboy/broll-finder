@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Clapperboard, ArrowRight } from "lucide-react";
 
 const TOOLS = [
@@ -29,7 +28,7 @@ export default function Landing() {
 
         <div className="mx-auto mt-12 w-full max-w-md space-y-4">
           {TOOLS.map((tool) => (
-            <Link
+            <a
               key={tool.href}
               href={tool.href}
               className="group flex flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:border-blue-300 hover:shadow-md"
@@ -48,7 +47,7 @@ export default function Landing() {
                   className="transition-transform group-hover:translate-x-0.5"
                 />
               </span>
-            </Link>
+            </a>
           ))}
         </div>
 
