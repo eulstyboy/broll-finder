@@ -2,14 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["pdf-parse"],
-  // Le slash final conserve l'outil dans le périmètre de son service worker.
-  skipTrailingSlashRedirect: true,
-  async redirects() {
-    return [
-      { source: "/hofmann-trace", destination: "/hofmann-trace/", permanent: false },
-      { source: "/broll/", destination: "/broll", permanent: false },
-    ];
-  },
+  // Next.js gère lui-même le slash final, sans redirection personnalisée en boucle.
+  // Les fichiers .html, .js et les autres ressources restent servis sans slash.
+  trailingSlash: true,
   async rewrites() {
     return {
       // Résoudre l'outil statique avant la route [[...slug]].
