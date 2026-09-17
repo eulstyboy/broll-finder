@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Calque_1" xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" viewBox="0 0 560 300">
+  <!-- Generator: Adobe Illustrator 30.8.1, SVG Export Plug-In . SVG Version: 2.1.4 Build 1)  -->
+  <defs>
+    <style>
+      .st0 {
+        stroke-dasharray: 5 5;
+      }
+
+      .st0, .st1, .st2, .st3, .st4 {
+        fill: none;
+      }
+
+      .st0, .st4 {
+        stroke: #cf4480;
+      }
+
+      .st1 {
+        stroke-width: 1.36px;
+      }
+
+      .st1, .st2 {
+        stroke-opacity: .16;
+      }
+
+      .st1, .st2, .st3 {
+        stroke: #252620;
+      }
+
+      .st5 {
+        fill: #252620;
+      }
+
+      .st3 {
+        stroke-opacity: .3;
+      }
+
+      .st4 {
+        stroke-dasharray: 3 5;
+        stroke-opacity: .6;
+      }
+
+      .st6 {
+        display: none;
+      }
+
+      .st7 {
+        fill: #eaede1;
+      }
+    </style>
+  </defs>
+  <g id="fond" inkscape:groupmode="layer" inkscape:label="01 â€” Fond">
+    <rect id="couleur-fond" class="st7" width="560" height="300"/>
+  </g>
+  <g>
+    <g id="shapes">
+      <path class="st5" d="M196.91,210.66v-.02c-.65-19.21-18.88-36.16-38.09-35.51-18.29.62-35.11,17.26-35.73,35.55v-.02c-.37,12.75-11.01,22.79-23.76,22.42-12.54-.36-22.5-10.67-22.43-23.21v.06h0v-60h0v-60h0v.3c-.07-12.76,10.22-23.15,22.98-23.22,12.54-.07,22.85,9.89,23.21,22.43h0c.65,19.22,18.88,35.95,38.09,35.29,18.29-.62,35.11-17,35.73-35.3h0c.37-12.75,11.01-22.79,23.76-22.42,12.54.36,22.5,10.67,22.43,23.21v-.3h0v60h0v60h0v-.06c.07,12.76-10.22,23.15-22.98,23.22-12.54.07-22.85-9.89-23.21-22.43Z"/>
+      <path class="st5" d="M376.9,210.13l-2.1-60.32c-.18-15.55-10.66-29.09-25.67-33.17l-15.19-4.13c-12.31-3.35-19.58-16.04-16.23-28.35,2.74-10.06,11.87-17.03,22.29-17.04h120c12.76,0,23.1,10.35,23.1,23.1,0,10.42-6.98,19.55-17.04,22.29l-15.19,4.13c-15.01,4.08-25.49,17.62-25.67,33.17l-2.1,60.32c0,12.76-10.34,23.1-23.1,23.1s-23.1-10.34-23.1-23.1h0Z"/>
+    </g>
+    <g id="filled-circles">
+      <path class="st5" d="M256.9,209.87c0,12.76,10.34,23.1,23.1,23.1s23.1-10.34,23.1-23.1-10.34-23.1-23.1-23.1-23.1,10.34-23.1,23.1Z"/>
+    </g>
+    <g id="filled-circles1" data-name="filled-circles">
+      <path class="st5" d="M436.9,209.87c0,12.76,10.34,23.1,23.1,23.1s23.1-10.34,23.1-23.1-10.34-23.1-23.1-23.1-23.1,10.34-23.1,23.1Z"/>
+    </g>
+  </g>
+  <g id="grille" inkscape:groupmode="layer" inkscape:label="02 â€” Grille de cercles">
+    <g>
+      <circle id="cercle-1" class="st2" cx="100" cy="30" r="23"/>
+      <circle id="cercle-2" class="st2" cx="160" cy="30" r="23"/>
+      <circle id="cercle-3" class="st2" cx="220" cy="30" r="23"/>
+      <circle id="cercle-4" class="st2" cx="280" cy="30" r="23"/>
+      <circle id="cercle-5" class="st2" cx="340" cy="30" r="23"/>
+      <circle id="cercle-6" class="st2" cx="400" cy="30" r="23"/>
+      <circle id="cercle-7" class="st2" cx="460" cy="30" r="23"/>
+      <circle id="cercle-8" class="st2" cx="100" cy="90" r="23"/>
+      <circle id="cercle-9" class="st1" cx="160" cy="90" r="31.24"/>
+      <circle id="cercle-91" data-name="cercle-9" class="st1" cx="340" cy="150.04" r="31.24"/>
+      <circle id="cercle-92" data-name="cercle-9" class="st1" cx="460" cy="150.04" r="31.24"/>
+      <circle id="cercle-93" data-name="cercle-9" class="st1" cx="160" cy="210" r="31.24"/>
+      <circle id="cercle-10" class="st2" cx="220" cy="90" r="23"/>
+      <circle id="cercle-11" class="st2" cx="280" cy="90" r="23"/>
+      <circle id="cercle-13" class="st2" cx="400" cy="90" r="23"/>
+      <circle id="cercle-15" class="st2" cx="100" cy="150" r="23"/>
+      <circle id="cercle-16" class="st2" cx="160" cy="150" r="23"/>
+      <circle id="cercle-17" class="st2" cx="220" cy="150" r="23"/>
+      <circle id="cercle-18" class="st2" cx="280" cy="150" r="23"/>
+      <circle id="cercle-19" class="st2" cx="340" cy="90" r="23"/>
+      <circle id="cercle-20" class="st2" cx="400" cy="150" r="23"/>
+      <circle id="cercle-21" class="st2" cx="460" cy="90" r="23"/>
+      <circle id="cercle-22" class="st2" cx="100" cy="210" r="23"/>
+      <circle id="cercle-24" class="st2" cx="220" cy="210" r="23"/>
+      <circle id="cercle-25" class="st2" cx="280" cy="210" r="23"/>
+      <circle id="cercle-26" class="st2" cx="340" cy="210" r="23"/>
+      <circle id="cercle-27" class="st2" cx="400" cy="210" r="23"/>
+      <circle id="cercle-28" class="st2" cx="460" cy="210" r="23"/>
+      <circle id="cercle-29" class="st2" cx="100" cy="270" r="23"/>
+      <circle id="cercle-30" class="st2" cx="160" cy="270" r="23"/>
+      <circle id="cercle-31" class="st2" cx="220" cy="270" r="23"/>
+      <circle id="cercle-32" class="st2" cx="280" cy="270" r="23"/>
+      <circle id="cercle-33" class="st2" cx="340" cy="270" r="23"/>
+      <circle id="cercle-34" class="st2" cx="400" cy="270" r="23"/>
+      <circle id="cercle-35" class="st2" cx="460" cy="270" r="23"/>
+    </g>
+  </g>
+  <g id="reperes" inkscape:groupmode="layer" inkscape:label="04 â€” RepÃ¨res dÃ©coratifs">
+    <path class="st3" d="M24,24h10M29,19v10M526,24h10M531,19v10M24,276h10M29,271v10M526,276h10M531,271v10"/>
+  </g>
+  <g id="guides" class="st6" inkscape:groupmode="layer" inkscape:label="99 â€” Guides (masquÃ©s, ne pas exporter)">
+    <rect class="st0" x="32" y="32" width="496" height="236"/>
+    <path class="st4" d="M280,0v300M0,150h560"/>
+  </g>
+</svg>

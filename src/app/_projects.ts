@@ -6,6 +6,8 @@ export type Project = {
   href: string;
   access: "public" | "private";
   artwork: "hofmann" | "broll" | "generic";
+  // Chemin du fichier dans public, sans le préfixe public.
+  image?: string;
   visible: boolean;
 };
 
@@ -20,6 +22,7 @@ export const projects: Project[] = [
     href: "/hofmann-trace/",
     access: "public",
     artwork: "hofmann",
+    image: "/projects/hofmann-trace.svg",
     visible: true,
   },
   {
@@ -30,7 +33,8 @@ export const projects: Project[] = [
     href: "/broll",
     access: "private",
     artwork: "broll",
-    visible: true,
+    image: "/projects/broll-finder.svg",
+    visible: false,
   },
 ];
 

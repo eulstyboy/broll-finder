@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="560" height="300" viewBox="0 0 560 300">
+<title>B-Roll Finder — vignette éditable</title>
+<desc>Vignette Eulst éditable. Fond et éléments vectoriels séparés. Guides masqués à l’export. Les badges et légendes de la page sont ajoutés par le site.</desc>
+<g id="fond" inkscape:groupmode="layer" inkscape:label="01 — Fond">
+<rect id="couleur-fond" width="560" height="300" fill="#eeeee7"/>
+</g>
+<g id="cadre" inkscape:groupmode="layer" inkscape:label="02 — Cadre et axes">
+<g fill="none" stroke="#252620" stroke-opacity="0.15"><path d="M0 150h560M280 0v300" stroke-dasharray="3 7"/><rect x="44" y="47" width="472" height="206" rx="2"/></g>
+</g>
+<g id="plan" inkscape:groupmode="layer" inkscape:label="03 — Plan / paysage">
+<rect x="77" y="87" width="114" height="126" rx="3" fill="#dddcd5"/><path d="m77 184 43-47 25 26 20-17 26 38v29H77Z" fill="#b8b9ad"/><circle cx="154" cy="117" r="10" fill="#f6f5f1"/>
+</g>
+<g id="sequence" inkscape:groupmode="layer" inkscape:label="04 — Séquence / lecture">
+<rect x="207" y="87" width="146" height="126" rx="3" fill="#22231f"/><path d="m269 132 29 18-29 18Z" fill="#f6f5f1"/>
+</g>
+<g id="rythme" inkscape:groupmode="layer" inkscape:label="05 — Rythme / son">
+<rect x="369" y="87" width="114" height="126" rx="3" fill="#dddcd5"/><path d="M392 176v-30m11 42v-55m11 34v-38m11 55v-72m11 82v-54m11 37v-23m11 32v-48" fill="none" stroke="#848779" stroke-width="3"/>
+</g>
+<g id="textes" inkscape:groupmode="layer" inkscape:label="06 — Textes éditables">
+<g fill="#252620" fill-opacity="0.5" font-family="Courier New, monospace" font-size="9"><text x="77" y="73">01 — PLAN</text><text x="207" y="73">02 — SÉQUENCE</text><text x="369" y="73">03 — RYTHME</text></g>
+</g>
+<g id="timeline" inkscape:groupmode="layer" inkscape:label="07 — Ligne de montage">
+<path d="M77 234h406" fill="none" stroke="#252620" stroke-opacity="0.2"/><path d="M207 230v8" fill="none" stroke="#252620"/>
+</g>
+<g id="guides" inkscape:groupmode="layer" inkscape:label="99 — Guides (masqués, ne pas exporter)" style="display:none">
+<rect x="32" y="32" width="496" height="236" fill="none" stroke="#cf4480" stroke-width="1" stroke-dasharray="5 5"/><path d="M280 0v300M0 150h560" fill="none" stroke="#cf4480" stroke-opacity="0.6" stroke-dasharray="3 5"/>
+</g>
+</svg>

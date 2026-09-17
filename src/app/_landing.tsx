@@ -9,7 +9,14 @@ function Arrow({ diagonal = false }: { diagonal?: boolean }) {
   );
 }
 
-function Artwork({ kind }: { kind: Project["artwork"] }) {
+function Artwork({ kind, image }: { kind: Project["artwork"]; image?: string }) {
+  if (image) {
+    return (
+      // Vignette décorative : le lien est déjà nommé par le titre du projet.
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={image} alt="" width={560} height={300} decoding="async" className={styles.artwork} style={{ objectFit: "contain" }} />
+    );
+  }
   if (kind === "hofmann") {
     return (
       <svg viewBox="0 0 560 300" fill="none" aria-hidden="true" className={styles.artwork}>
@@ -96,7 +103,7 @@ export default function Landing() {
                     <div className={styles.visual}>
                       <span className={styles.projectNumber}>{String(index + 1).padStart(2, "0")}</span>
                       <span className={styles.badge}>{project.access === "private" ? "Accès privé" : "Accès libre"}</span>
-                      <Artwork kind={project.artwork} />
+                      <Artwork kind={project.artwork} image={project.image} />
                       <span className={styles.visualCaption}>{project.artwork === "hofmann" ? "De la contrainte naît la forme." : project.artwork === "broll" ? "Chaque plan commence par une idée." : "Une nouvelle piste à explorer."}</span>
                     </div>
                     <div className={styles.projectBody}>
