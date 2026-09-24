@@ -1,4 +1,4 @@
-const CACHE='hofmann-trace-1.8.20';
+const CACHE='hofmann-trace-1.8.22';
 const CORE=['./','./index.html'];
 const OPTIONAL=['./manifest.webmanifest','./icon.svg','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(async cache=>{
@@ -14,3 +14,11 @@ self.addEventListener('fetch',event=>{
     try{return await fetch(event.request);}catch(error){if(event.request.mode==='navigate')return cache.match('./index.html');throw error;}
   }));
 });
+
+
+
+
+
+
+
+
