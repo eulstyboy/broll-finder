@@ -1,4 +1,4 @@
-const CACHE='hofmann-trace-1.8.41';
+const CACHE='hofmann-trace-1.8.42';
 const CORE=['./','./index.html'];
 const OPTIONAL=['./manifest.webmanifest','./icon.svg','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(async cache=>{

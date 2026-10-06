@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="application-version" content="1.8.41">
+<meta name="application-version" content="1.8.42">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#141414">
 <title>Hofmann Trace</title>
@@ -92,7 +92,7 @@
   .canvas-wrap{ position: relative; display: grid; place-items: center; padding: 14px; min-height: 0; overflow: hidden; }
   .frame{ position: relative; width: 100%; max-height: 100%; }
   .frame svg{ display: block; width: 100%; height: auto; touch-action: none; cursor: crosshair; }
-  .status{ font-family: var(--mono); font-size: 11px; color: var(--muted); padding: .35rem .75rem; border-top: 1px solid var(--line); background: var(--panel); min-height: 1.9em; }
+  .status{ font-family: var(--mono); font-size: 11px; color: var(--muted); padding: .35rem .75rem; border-top: 1px solid var(--line); background: var(--panel); height: 3.3em; overflow: hidden; box-sizing: border-box; }
 
   /* svg layers */
   .shape{ cursor: pointer; }
@@ -236,7 +236,7 @@
     .popup .ibtn{ width: 40px; height: 40px; }
     .popup input[type="range"]{ min-height: 40px; }
     .popup input[type="number"]{ font-size: 16px; }
-    .status{ min-height: 3.5em; }
+    .status{ height: 3.9em; }
     .canvas-wrap{ padding: 8px; }
   }
 
@@ -688,7 +688,8 @@ var WORKER_SOURCE = "/* The same geometry implementation is assembled here and i
   var svg = $('canvas'), frame = $('frame'), wrap = $('wrap');
   var touchEditing = window.matchMedia('(hover: none), (pointer: coarse)').matches;
   svg.classList.toggle('touch-edit', touchEditing);
-  function setStatus(m){ $('status').textContent = m || ''; }
+  // the status bar keeps a fixed height: a longer message must not move the canvas under the pointer
+  function setStatus(m){ var el=$('status');el.textContent = m || '';el.title = m || ''; }
 
   function createCanvas(){ return document.createElement('canvas'); }
 
@@ -3673,7 +3674,7 @@ var WORKER_SOURCE = "/* The same geometry implementation is assembled here and i
   /* ---------- width tool: the stroke grows or thins around width points ---------- */
   // state.widths: [{k, a, d, w, g}]: a point at angle a and distance d from circle k (so it follows the circle
   // when the outline is recomputed), w multiplies the stroke width there, g groups a point with its mirror twins.
-  var WIDTH_MAX=12,WIDTH_REACH=S,widthLayoutKey='',widthLayoutValue=null,widthChainCache=new Map();
+  var WIDTH_MAX=12,widthLayoutKey='',widthLayoutValue=null,widthChainCache=new Map();
   function widthPoints(){return Array.isArray(state.widths)?state.widths:[];}
   function widthAnchor(p){var c=nodeCenter(p.k);return{x:c.x+p.d*Math.cos(p.a),y:c.y+p.d*Math.sin(p.a)};}
   // dense samples of an outline with their arc length
@@ -3711,29 +3712,24 @@ var WORKER_SOURCE = "/* The same geometry implementation is assembled here and i
       if(best&&best.dist<S*.75)marks.push({ci:best.ci,s:best.s,x:best.x,y:best.y,nx:best.nx,ny:best.ny,w:p.w,idx:idx,g:p.g});});
     widthLayoutKey=key;widthLayoutValue={chains:chains,marks:marks};return widthLayoutValue;
   }
-  // width multiplier along a chain: neighbouring points blend smoothly; far apart, each one eases back to the plain stroke
+  // width multiplier along a chain: the width blends smoothly from one width point to the next, so points
+  // are the limits of every change. A lone point on a closed outline fades back to the plain stroke on the far side.
   function widthProfile(ch,marks){
     if(!marks.length)return null;
-    var m=marks.slice().sort(function(a,b){return a.s-b.s;}),L=ch.L,R=WIDTH_REACH;
+    var m=marks.slice().sort(function(a,b){return a.s-b.s;}),L=ch.L;
     function ease(t){t=Math.max(0,Math.min(1,t));return t*t*(3-2*t);}
-    function between(a,b,gap,u){ // u: distance from a towards b
-      if(gap<=2*R)return a.w+(b.w-a.w)*ease(gap?u/gap:0);
-      if(u<R)return a.w+(1-a.w)*ease(u/R);
-      if(gap-u<R)return b.w+(1-b.w)*ease((gap-u)/R);
-      return 1;
-    }
+    function between(a,b,gap,u){return a.w+(b.w-a.w)*ease(gap>1e-9?u/gap:0);}
     return function(s){
       if(ch.closed){
+        if(m.length===1){var d=((s-m[0].s)%L+L)%L;return between(m[0],{w:1},L/2,Math.min(d,L-d));}
         var next=null;for(var i=0;i<m.length;i++)if(m[i].s>=s){next=i;break;}
         var b=m[next===null?0:next],a=m[next===null?m.length-1:(next-1+m.length)%m.length];
-        var gap=((b.s-a.s)%L+L)%L;if(m.length===1)gap=L;var u=((s-a.s)%L+L)%L;
-        if(m.length===1){return u<R?a.w+(1-a.w)*ease(u/R):L-u<R?a.w+(1-a.w)*ease((L-u)/R):1;}
-        return between(a,b,gap,u);
+        return between(a,b,((b.s-a.s)%L+L)%L,((s-a.s)%L+L)%L);
       }
-      if(s<=m[0].s)return m[0].s-s<R?m[0].w+(1-m[0].w)*ease((m[0].s-s)/R):1;
-      var lst=m[m.length-1];if(s>=lst.s)return s-lst.s<R?lst.w+(1-lst.w)*ease((s-lst.s)/R):1;
+      if(s<=m[0].s)return m[0].w;
+      var lst=m[m.length-1];if(s>=lst.s)return lst.w;
       for(var j=0;j<m.length-1;j++)if(s<=m[j+1].s)return between(m[j],m[j+1],m[j+1].s-m[j].s,s-m[j].s);
-      return 1;
+      return lst.w;
     };
   }
   function segCross(a,b,c,d){
@@ -5184,7 +5180,7 @@ var WORKER_SOURCE = "/* The same geometry implementation is assembled here and i
   /* ---------- tools & pointer ---------- */
   var tangentFocus=null;
   $('tangentAction').addEventListener('click',function(){if(tangentFocus&&!geometryBusy)clickTangent({getAttribute:function(k){return tangentFocus[k];}});});
-  var toolMsgs = { width: 'width: drag the stroke away from the outline to thicken it, towards it to thin it. Double-click a width point to remove it.', select: 'select: click a shape, then a tangent for metaball. Drag a circle to move it; drag between circles to select several. Shift-click / touch and hold adds to selection; double-click / double-tap for size.', lassoAdd: 'lasso + : circle the dots you want, the loop tightens when you release.', lassoSub: 'lasso − : circle the dots to remove — several circles are linked like with lasso +.', polyAdd: 'polygon + : one click per vertex, click the first point to close.', polySub: 'polygon − : one click per vertex around the circles to remove.', size: 'size : tap a circle.', fill: 'draw : drag to paint cells. Start on a filled cell to erase.' };
+  var toolMsgs = { width: 'width: drag across the stroke to thicken or thin it, drag a point along the outline to move it. The width blends from one point to the next: click to add a point that limits a change. Double-click a point to remove it.', select: 'select: click a shape, then a tangent for metaball. Drag a circle to move it; drag between circles to select several. Shift-click / touch and hold adds to selection; double-click / double-tap for size.', lassoAdd: 'lasso + : circle the dots you want, the loop tightens when you release.', lassoSub: 'lasso − : circle the dots to remove — several circles are linked like with lasso +.', polyAdd: 'polygon + : one click per vertex, click the first point to close.', polySub: 'polygon − : one click per vertex around the circles to remove.', size: 'size : tap a circle.', fill: 'draw : drag to paint cells. Start on a filled cell to erase.' };
   function syncToolFeedback(){
     var t=state.tool;
     document.querySelectorAll('[data-tool]').forEach(function(b){b.setAttribute('aria-pressed',String(b.getAttribute('data-tool')===t));});
@@ -5303,7 +5299,13 @@ var WORKER_SOURCE = "/* The same geometry implementation is assembled here and i
     return best;
   }
   function widthAt(ci,s){var lay=widthLayout(),ch=lay.chains[ci],f=widthProfile(ch,lay.marks.filter(function(m){return m.ci===ci;}));return f?f(s):1;}
-  function markNear(pt,tol){var lay=widthLayout(),best=null;lay.marks.forEach(function(m){var d=Math.hypot(m.x-pt.x,m.y-pt.y);if(d<tol&&(!best||d<best.d))best={m:m,d:d};});return best&&best.m;}
+  function markNear(pt,tol){
+    // a width point is grabbed anywhere across the stroke it sets: its centre, either handle, or in between
+    var lay=widthLayout(),best=null;
+    lay.marks.forEach(function(m){var dx=pt.x-m.x,dy=pt.y-m.y,across=Math.abs(dx*m.nx+dy*m.ny),along=Math.abs(dx*m.ny-dy*m.nx),hw=state.strokeWidth/2*widthAt(m.ci,m.s);
+      if(along<tol&&across<hw+tol&&(!best||along<best.d))best={m:m,d:along};});
+    return best&&best.m;
+  }
   function widthMirrors(p){
     var out=[];if(!symOn())return out;
     symmetryTransforms().slice(1).forEach(function(t){var k=reflectedKey(p.k,t);if(!k)return;var v=reflectedVector({x:Math.cos(p.a),y:Math.sin(p.a)},t),a=Math.atan2(v.y,v.x);
@@ -5319,22 +5321,42 @@ var WORKER_SOURCE = "/* The same geometry implementation is assembled here and i
     if(!hit&&(!near||near.dist>Math.max(14*unit,state.strokeWidth/2*widthAt(near?near.ci:0,near?near.s:0)+8*unit))){setStatus('press on a shape\'s outline to set its width there.');return;}
     var before=snapshot(),g;
     if(!strokeOn()){state.strokeEnabled=true;if(!state.strokeWidth)state.strokeWidth=2;}
-    if(hit){g=widthPoints()[hit.idx].g;near={x:hit.x,y:hit.y,nx:hit.nx,ny:hit.ny,ci:hit.ci,s:hit.s};}
+    var primary;
+    if(hit){primary=widthPoints()[hit.idx];g=primary.g;near={x:hit.x,y:hit.y,nx:hit.nx,ny:hit.ny,ci:hit.ci,s:hit.s};}
     else{
       // anchor the new point to the closest circle so it follows the outline when the shape changes
       var k=null,kd=Infinity;activeKeys().forEach(function(q){var c=nodeCenter(q),d=Math.hypot(c.x-near.x,c.y-near.y);if(d<kd){kd=d;k=q;}});
       if(!k)return;var c0=nodeCenter(k);
       g=widthGroupSeq=Math.max(widthGroupSeq,1+widthPoints().reduce(function(m,p){return Math.max(m,p.g||0);},0));
       var p={k:k,a:Math.atan2(near.y-c0.y,near.x-c0.x),d:kd,w:Math.round(widthAt(near.ci,near.s)*100)/100,g:g};
-      state.widths=widthPoints().concat([p],widthMirrors(p));
+      state.widths=widthPoints().concat([p],widthMirrors(p));primary=p;
     }
-    widthGesture={pointerId:e.pointerId,g:g,at:near,before:before};
+    // the drag is relative to where the stroke was grabbed: from a handle, moving out thickens and moving in thins;
+    // from the centre line, the distance to the outline sets the width directly
+    var across0=Math.abs((pt.x-near.x)*near.nx+(pt.y-near.y)*near.ny),hw0=state.strokeWidth/2*widthAt(near.ci,near.s);
+    // grabbed on its centre, a point slides along the outline when the drag follows the outline, and sets the width when it leaves it
+    widthGesture={pointerId:e.pointerId,g:g,at:near,before:before,across0:across0,hw0:hw0,fromCentre:across0<3*unit,start:pt,primary:primary,mode:across0<5*unit?null:'width',unit:unit};
     try{svg.setPointerCapture(e.pointerId);}catch(err){}
     e.preventDefault();render();
   }
+  function anchorWidthPoint(q,w,g){
+    var k=null,kd=Infinity;activeKeys().forEach(function(key){var c=nodeCenter(key),d=Math.hypot(c.x-q.x,c.y-q.y);if(d<kd){kd=d;k=key;}});
+    if(!k)return null;var c0=nodeCenter(k);return{k:k,a:Math.atan2(q.y-c0.y,q.x-c0.x),d:kd,w:w,g:g};
+  }
   function moveWidthGesture(pt){
-    var a=widthGesture.at,dist=Math.abs((pt.x-a.x)*a.nx+(pt.y-a.y)*a.ny);
-    var w=Math.max(0,Math.min(WIDTH_MAX,2*dist/Math.max(.5,state.strokeWidth)));w=Math.round(w*100)/100;
+    var wg=widthGesture,a0=wg.at;
+    if(!wg.mode){var dx=pt.x-wg.start.x,dy=pt.y-wg.start.y;if(Math.hypot(dx,dy)<3*wg.unit)return;
+      wg.mode=Math.abs(dx*a0.ny-dy*a0.nx)>Math.abs(dx*a0.nx+dy*a0.ny)?'move':'width';}
+    if(wg.mode==='move'){
+      var ch=widthLayout().chains[a0.ci];if(!ch)return;var q=projectOnChain(ch,pt);
+      var cur=widthPoints().find(function(p){return p.g===wg.g;}),w=cur?cur.w:wg.primary.w;
+      var np=anchorWidthPoint(q,w,wg.g);if(!np)return;
+      state.widths=widthPoints().filter(function(p){return p.g!==wg.g;}).concat([np],widthMirrors(np));
+      setStatus('width point moved along the outline.');scheduleRender();return;
+    }
+    var a=widthGesture.at,across=Math.abs((pt.x-a.x)*a.nx+(pt.y-a.y)*a.ny);
+    var hw=widthGesture.fromCentre?across:Math.max(0,widthGesture.hw0+across-widthGesture.across0);
+    var w=Math.max(0,Math.min(WIDTH_MAX,2*hw/Math.max(.5,state.strokeWidth)));w=Math.round(w*100)/100;
     state.widths=widthPoints().map(function(p){return p.g===widthGesture.g?Object.assign({},p,{w:w}):p;});
     setStatus('stroke width here: '+fmt(w*state.strokeWidth)+' px (×'+fmt(w)+').');scheduleRender();
   }
@@ -5353,7 +5375,7 @@ var WORKER_SOURCE = "/* The same geometry implementation is assembled here and i
     lay.marks.forEach(function(m){var hw=state.strokeWidth/2*widthAt(m.ci,m.s);
       out+='<line class="width-span" x1="'+fmt(m.x-m.nx*hw)+'" y1="'+fmt(m.y-m.ny*hw)+'" x2="'+fmt(m.x+m.nx*hw)+'" y2="'+fmt(m.y+m.ny*hw)+'" stroke-width="'+fmt(1.5*u)+'"/>';
       out+='<circle class="width-mark" cx="'+fmt(m.x)+'" cy="'+fmt(m.y)+'" r="'+fmt(4*u)+'" stroke-width="'+fmt(1.5*u)+'"/>';
-      [-1,1].forEach(function(sd){out+='<circle class="width-handle" cx="'+fmt(m.x+sd*m.nx*hw)+'" cy="'+fmt(m.y+sd*m.ny*hw)+'" r="'+fmt(2.6*u)+'"/>';});});
+      [-1,1].forEach(function(sd){out+='<circle class="width-handle" cx="'+fmt(m.x+sd*m.nx*hw)+'" cy="'+fmt(m.y+sd*m.ny*hw)+'" r="'+fmt(3.5*u)+'"/>';});});
     var hv=widthGesture?null:widthHover;
     if(hv){var n=nearestOutlinePoint(hv);if(n&&n.dist<24*u){var hw=state.strokeWidth/2*widthAt(n.ci,n.s);
       out+='<line class="width-span hover" x1="'+fmt(n.x-n.nx*Math.max(hw,6*u))+'" y1="'+fmt(n.y-n.ny*Math.max(hw,6*u))+'" x2="'+fmt(n.x+n.nx*Math.max(hw,6*u))+'" y2="'+fmt(n.y+n.ny*Math.max(hw,6*u))+'" stroke-width="'+fmt(1.5*u)+'"/>';}}
