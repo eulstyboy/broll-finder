@@ -8,6 +8,8 @@ export type Project = {
   artwork: "hofmann" | "broll" | "generic";
   // Chemin du fichier dans public, sans le préfixe public.
   image?: string;
+  // Légende sous la vignette ; sinon celle de l'illustration par défaut.
+  caption?: string;
   visible: boolean;
 };
 
@@ -23,6 +25,18 @@ export const projects: Project[] = [
     access: "public",
     artwork: "hofmann",
     image: "/projects/hofmann-trace.svg",
+    visible: true,
+  },
+  {
+    id: "rene-tiles",
+    name: "René Tiles",
+    category: "Photo · Mosaïque",
+    description: "Des centaines de photos, un seul portrait. Composez votre mosaïque et retrouvez chaque image sur son propre calque.",
+    href: "https://renetiles.eulst.app",
+    access: "public",
+    artwork: "generic",
+    image: "/projects/rene-tiles.svg",
+    caption: "Chaque photo trouve sa place.",
     visible: true,
   },
   {

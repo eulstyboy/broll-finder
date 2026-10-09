@@ -104,7 +104,7 @@ export default function Landing() {
                       <span className={styles.projectNumber}>{String(index + 1).padStart(2, "0")}</span>
                       <span className={styles.badge}>{project.access === "private" ? "Accès privé" : "Accès libre"}</span>
                       <Artwork kind={project.artwork} image={project.image} />
-                      <span className={styles.visualCaption}>{project.artwork === "hofmann" ? "De la contrainte naît la forme." : project.artwork === "broll" ? "Chaque plan commence par une idée." : "Une nouvelle piste à explorer."}</span>
+                      <span className={styles.visualCaption}>{project.caption ?? (project.artwork === "hofmann" ? "De la contrainte naît la forme." : project.artwork === "broll" ? "Chaque plan commence par une idée." : "Une nouvelle piste à explorer.")}</span>
                     </div>
                     <div className={styles.projectBody}>
                       <p className={styles.category}>{project.category}</p>
