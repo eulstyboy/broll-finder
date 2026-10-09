@@ -1,6 +1,6 @@
-const CACHE='hofmann-trace-1.8.46';
+const CACHE='hofmann-trace-1.8.47';
 const CORE=['./','./index.html'];
-const OPTIONAL=['./manifest.webmanifest','./icon.svg','./icon-192.png','./icon-512.png'];
+const OPTIONAL=['./manifest.webmanifest','./icon.svg','./icon-192.png','./icon-512.png','./icon-maskable-512.png','./apple-touch-icon.png'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(async cache=>{
   await cache.addAll(CORE);
   await Promise.allSettled(OPTIONAL.map(url=>cache.add(url)));
