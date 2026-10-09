@@ -166,9 +166,31 @@ function start(noThree) {
   /* ---------- state ---------- */
   var cur = 0, tension = 0, lastInput = 0, busy = false, armed = true, quietT = 0, dragging = false, charge = 0;
 
-  /* vibrations (Android) : un cran par graduation de la jauge, un coup plus fort au seuil, un « clac » au passage */
-  var canBuzz = typeof navigator.vibrate === "function", lastNotch = 0, edgeBuzzed = false;
-  function buzz(p) { if (!canBuzz) return; try { navigator.vibrate(p); } catch (e) { canBuzz = false; } }
+  /* vibrations : un cran par graduation de la jauge, un coup plus fort au seuil, un « clac » au passage.
+     Android : navigator.vibrate. iOS (Safari) : astuce de l'interrupteur caché, un tic léger par impulsion. */
+  var canVibrate = typeof navigator.vibrate === "function";
+  var iosHaptic = !canVibrate && coarse && /iP(hone|ad|od)|Macintosh/.test(navigator.userAgent);
+  var lastNotch = 0, edgeBuzzed = false, iosSwitch = null;
+  function iosTap() {
+    try {
+      if (!iosSwitch) {
+        iosSwitch = document.createElement("label");
+        iosSwitch.setAttribute("aria-hidden", "true");
+        iosSwitch.style.cssText = "position:fixed;left:0;top:0;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;z-index:-1";
+        var sw = document.createElement("input");
+        sw.type = "checkbox"; sw.setAttribute("switch", ""); sw.tabIndex = -1;
+        iosSwitch.appendChild(sw); document.body.appendChild(iosSwitch);
+      }
+      iosSwitch.click();
+    } catch (e) { iosHaptic = false; }
+  }
+  function buzz(p) {
+    if (canVibrate) { try { navigator.vibrate(p); } catch (e) { canVibrate = false; } return; }
+    if (!iosHaptic) return;
+    if (typeof p === "number") { iosTap(); return; }
+    var t = 0; /* motif : un tic au début de chaque phase « on » */
+    for (var k = 0; k < p.length; k++) { if (k % 2 === 0) { if (t === 0) iosTap(); else setTimeout(iosTap, t); } t += p[k]; }
+  }
   function hapticTick(at) {
     var notch = Math.min(10, Math.floor(at * 10 + 1e-6));
     if (notch > lastNotch) buzz(notch >= 10 ? 22 : 4 + notch);
@@ -212,6 +234,7 @@ function start(noThree) {
     var atEdge = edgeFor(Math.sign(raw));
     tension = atEdge ? clamp(raw * .3, -.35, .35) : clamp(raw, -1.12, 1.12);
     if (atEdge && Math.abs(tension) >= .35) { if (!edgeBuzzed) buzz([8, 30, 8]); edgeBuzzed = true; } else edgeBuzzed = false;
+    if (!atEdge) hapticTick(Math.abs(tension));
     lastInput = performance.now();
   }, { passive: false });
   addEventListener("touchend", function () {
@@ -259,7 +282,7 @@ function start(noThree) {
     hoverAmt += ((hot ? 1 : 0) - hoverAmt) * Math.min(1, dt * 10);
     shake = Math.max(0, shake - dt * 2.6);
     var at = Math.abs(tension), strain = reduce ? 0 : Math.max(0, at - .45) / .55;
-    if (!busy) hapticTick(at);
+    if (!busy && !dragging) hapticTick(at);
 
     if (gl) {
       tint.lerp(items[cur].col, Math.min(1, dt * 4));
