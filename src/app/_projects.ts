@@ -40,6 +40,18 @@ export const projects: Project[] = [
     visible: true,
   },
   {
+    id: "resonances",
+    name: "Résonances",
+    category: "Art · Musique",
+    description: "Regardez un tableau : votre regard en joue la musique. Une simple caméra suffit, aucune image ne quitte votre appareil.",
+    href: "https://resonances.eulst.app",
+    access: "public",
+    artwork: "generic",
+    image: "/projects/resonances.svg",
+    caption: "La couleur est la touche. L’œil est le marteau.",
+    visible: true,
+  },
+  {
     id: "broll-finder",
     name: "B-Roll Finder",
     category: "Vidéo · Intelligence artificielle",
