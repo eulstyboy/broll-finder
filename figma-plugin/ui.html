@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="application-version" content="1.8.48">
+<meta name="application-version" content="1.8.49">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#141414">
 <title>Hofmann Trace</title>
@@ -469,7 +469,7 @@
         <label class="toggle"><input type="checkbox" id="exportBg" checked> include background</label>
         <button type="button" class="item" data-fmt="process">Creation process <small>MP4 / GIF</small></button>
         <div class="mtitle">project</div>
-        <button type="button" class="item" data-fmt="json">Save project <small>.json</small></button>
+        <button type="button" class="item" data-fmt="json" title="Ctrl+S / ⌘S">Save project <small>.json · ctrl S</small></button>
         <button type="button" class="item" id="openProject">Open project… <small>.json</small></button>
         <input type="file" id="projectFile" accept=".json,application/json" style="display:none">
       </div>
@@ -621,7 +621,8 @@
           <b>click a tangent</b> to melt it into a neck<br>
           <b>mirror icon</b> or <kbd>m</kbd> for symmetry<br>
           <b>corner rounding</b> from squares to circles<br>
-          <b>two fingers</b> to zoom and move<br><b>mouse wheel</b> to zoom, <kbd>space</kbd> + drag to move
+          <b>two fingers</b> to zoom and move<br><b>mouse wheel</b> to zoom, <kbd>space</kbd> + drag to move<br>
+          <kbd>ctrl</kbd> / <kbd>⌘</kbd> + <kbd>s</kbd> to save the project
         </div>
       </section>
     </aside>
@@ -6506,6 +6507,16 @@ function createReplayGif(width,height,palette){
     return native;
   }
   function openProjectSave(){finishPaint(true);finishControlEdit();closeSizePopup(true);syncSaveDialog();$('saveProjectDlg').showModal();}
+  // Ctrl+S / Cmd+S saves the project instead of the browser saving the page. In the save dialog it confirms;
+  // other dialogs keep the browser default blocked and stay as they are.
+  window.addEventListener('keydown',function(e){
+    if(!(e.ctrlKey||e.metaKey)||e.altKey||e.shiftKey||e.code!=='KeyS')return;
+    e.preventDefault();if(e.repeat)return;
+    var dlg=$('saveProjectDlg');
+    if(dlg.open){if(!projectSaveBusy)$('saveProjectForm').requestSubmit();return;}
+    if(document.querySelector('dialog[open]'))return;
+    $('exportMenu').classList.remove('open');openProjectSave();
+  },true);
   $('saveProjectCancel').addEventListener('click',function(){$('saveProjectDlg').close();});
   $('saveProjectForm').addEventListener('submit',async function(e){
     e.preventDefault();if(projectSaveBusy)return;projectSaveBusy=true;$('saveProjectConfirm').disabled=true;
