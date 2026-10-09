@@ -165,6 +165,15 @@ function start(noThree) {
 
   /* ---------- state ---------- */
   var cur = 0, tension = 0, lastInput = 0, busy = false, armed = true, quietT = 0, dragging = false, charge = 0;
+
+  /* vibrations (Android) : un cran par graduation de la jauge, un coup plus fort au seuil, un « clac » au passage */
+  var canBuzz = typeof navigator.vibrate === "function", lastNotch = 0, edgeBuzzed = false;
+  function buzz(p) { if (!canBuzz) return; try { navigator.vibrate(p); } catch (e) { canBuzz = false; } }
+  function hapticTick(at) {
+    var notch = Math.min(10, Math.floor(at * 10 + 1e-6));
+    if (notch > lastNotch) buzz(notch >= 10 ? 22 : 4 + notch);
+    lastNotch = notch;
+  }
   var trans = null, hot = false, hoverAmt = 0, shake = 0, tint = gl ? new T.Color(APPS[0].color) : null;
   var RESIST = reduce ? 180 : 560; /* px de molette pour libérer un objet */
   var DUR = reduce ? .32 : .8;
@@ -182,7 +191,7 @@ function start(noThree) {
     var dir = i > cur ? 1 : -1, from = cur; busy = true; armed = false; charge = 0;
     trans = { from: from, to: i, dir: dir, start: performance.now() };
     if (gl) { items[i].grp.visible = true; items[i].ry = items[from].ry - dir * 1.2; }
-    cur = i; tension = 0; setHot(false); updateHUD();
+    cur = i; tension = 0; lastNotch = 0; buzz([18, 40, 34]); setHot(false); updateHUD();
     setTimeout(function () { if (gl) items[from].grp.visible = false; trans = null; busy = false; if (performance.now() - lastInput > 200) armed = true; }, DUR * 1000);
   }
 
@@ -200,7 +209,9 @@ function start(noThree) {
   addEventListener("touchmove", function (e) {
     if (ty0 == null) return; e.preventDefault(); if (busy) return;
     var raw = (ty0 - e.touches[0].clientY) / (innerHeight * (reduce ? .12 : .3));
-    tension = edgeFor(Math.sign(raw)) ? clamp(raw * .3, -.35, .35) : clamp(raw, -1.12, 1.12);
+    var atEdge = edgeFor(Math.sign(raw));
+    tension = atEdge ? clamp(raw * .3, -.35, .35) : clamp(raw, -1.12, 1.12);
+    if (atEdge && Math.abs(tension) >= .35) { if (!edgeBuzzed) buzz([8, 30, 8]); edgeBuzzed = true; } else edgeBuzzed = false;
     lastInput = performance.now();
   }, { passive: false });
   addEventListener("touchend", function () {
@@ -248,6 +259,7 @@ function start(noThree) {
     hoverAmt += ((hot ? 1 : 0) - hoverAmt) * Math.min(1, dt * 10);
     shake = Math.max(0, shake - dt * 2.6);
     var at = Math.abs(tension), strain = reduce ? 0 : Math.max(0, at - .45) / .55;
+    if (!busy) hapticTick(at);
 
     if (gl) {
       tint.lerp(items[cur].col, Math.min(1, dt * 4));
