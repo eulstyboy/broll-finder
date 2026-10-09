@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="application-version" content="1.8.43">
+<meta name="application-version" content="1.8.44">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#141414">
 <title>Hofmann Trace</title>
@@ -246,6 +246,7 @@
   .width-span{stroke:#2f7bff;fill:none}.width-span.hover{stroke-dasharray:3 3;opacity:.8}.width-mark{fill:#fff;stroke:#2f7bff}.width-handle{fill:#2f7bff}
   .figma-btn{font:12px var(--sans,system-ui);height:30px;padding:0 12px;border-radius:6px;border:1px solid var(--line-2);background:var(--panel-2);color:var(--text);cursor:pointer;margin-left:6px}.figma-check{display:inline-flex;align-items:center;gap:5px;font:12px var(--sans,system-ui);color:var(--muted);margin-left:10px;cursor:pointer}.figma-btn.primary{background:#0d99ff;border-color:#0d99ff;color:#fff}.figma-btn[hidden]{display:none}#shareBtn,#installApp,#updateApp{display:none!important}#figmaGrip{position:fixed;right:0;bottom:0;width:14px;height:14px;cursor:nwse-resize;z-index:99;background:linear-gradient(135deg,transparent 50%,var(--line-2) 50%)}
   .view-tools button{border:0;background:transparent;color:var(--text);min-width:34px;height:34px;cursor:pointer}#zoomReset{font:11px var(--mono);min-width:54px}
+  .drop-hint{position:absolute;inset:8px;z-index:40;display:grid;place-items:center;border:2px dashed var(--acc);border-radius:14px;background:rgba(15,15,15,.55);pointer-events:none}.drop-hint[hidden]{display:none}.drop-hint span{background:var(--panel);padding:10px 16px;border-radius:20px;font-size:12px}
   #busyBadge{position:absolute;top:12px;left:50%;transform:translateX(-50%);border-radius:20px;background:var(--panel);padding:8px 12px;font-size:11px;pointer-events:none;z-index:5}
   #pixelBadge{position:absolute;top:12px;left:12px;border:1px solid var(--line);border-radius:20px;background:var(--panel);color:var(--muted);padding:6px 10px;font:10px var(--mono);pointer-events:none;z-index:4}
   .preview-only #pixelBadge{visibility:hidden}
@@ -4646,8 +4647,10 @@ var WORKER_SOURCE = "/* The same geometry implementation is assembled here and i
     $('traceApply').disabled=!tracePreview||tracePreview.approximate||geometryBusy;$('tracePreviewBtn').disabled=!ref||referenceLoading>0||geometryBusy;
   }
   $('referenceImport').addEventListener('click',function(){$('referenceFile').value='';$('referenceFile').click();});
-  $('referenceFile').addEventListener('change',async function(){
-    var file=this.files&&this.files[0];if(!file)return;var token=++referenceImportVersion;
+  $('referenceFile').addEventListener('change',function(){var file=this.files&&this.files[0];if(file)importReferenceFile(file);});
+  var REFERENCE_TYPES=['image/png','image/jpeg','image/webp','image/gif'];
+  async function importReferenceFile(file){
+    var token=++referenceImportVersion;
     if(file.size>25000000){setStatus('Choose an image smaller than 25 MB.');return;}
     var url=URL.createObjectURL(file),img=new Image();referenceLoading++;setStatus('Opening reference image…');
     try{
@@ -4661,7 +4664,24 @@ var WORKER_SOURCE = "/* The same geometry implementation is assembled here and i
       setStatus('Reference added. Adjust its position and opacity, then draw or preview a shape.');
     }catch(e){setStatus('Could not import this image. Try a PNG, JPEG or WebP.');}
     finally{referenceLoading--;URL.revokeObjectURL(url);render();}
-  });
+  }
+  // Dropping an image file on the workspace sets it as the reference, like the import button.
+  (function(){
+    var wrap=$('wrap'),hint=document.createElement('div'),depth=0;hint.className='drop-hint';hint.hidden=true;hint.innerHTML='<span>Drop to use as reference image</span>';wrap.appendChild(hint);
+    function carriesFiles(e){var t=e.dataTransfer&&e.dataTransfer.types;return!!t&&Array.prototype.indexOf.call(t,'Files')>=0;}
+    function hide(){depth=0;hint.hidden=true;}
+    wrap.addEventListener('dragenter',function(e){if(!carriesFiles(e))return;e.preventDefault();depth++;hint.hidden=false;});
+    wrap.addEventListener('dragover',function(e){if(!carriesFiles(e))return;e.preventDefault();e.dataTransfer.dropEffect='copy';hint.hidden=false;});
+    wrap.addEventListener('dragleave',function(e){if(!carriesFiles(e))return;depth=Math.max(0,depth-1);if(!depth)hint.hidden=true;});
+    wrap.addEventListener('drop',function(e){if(!carriesFiles(e))return;e.preventDefault();e.stopPropagation();hide();
+      var files=Array.prototype.slice.call(e.dataTransfer.files||[]),file=files.find(function(f){return REFERENCE_TYPES.indexOf(f.type)>=0;});
+      if(!file){setStatus(files.length?'Drop a PNG, JPEG, WebP or GIF image to use it as a reference.':'Could not read the dropped file.');return;}
+      importReferenceFile(file);});
+    // A file dropped anywhere else must not make the browser leave the app and lose the drawing.
+    window.addEventListener('dragover',function(e){if(carriesFiles(e)){e.preventDefault();e.dataTransfer.dropEffect='none';}});
+    window.addEventListener('drop',function(e){if(carriesFiles(e)){e.preventDefault();hide();}});
+    window.addEventListener('dragend',hide);
+  })();
   // Image decoding is separate from geometry so imports do not wait for themselves.
   function whenIdleGeometry(){return new Promise(function(resolve){function check(){if(!geometryBusy)resolve();else setTimeout(check,10);}check();});}
   [['refOpacity','opacity',100],['refScale','scale',100],['refX','x',100],['refY','y',100],['traceThreshold','threshold',1]].forEach(function(a){
