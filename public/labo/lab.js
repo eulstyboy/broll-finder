@@ -5,7 +5,7 @@
     if (window.THREE) return start();
     var s = document.createElement("script");
     s.src = THREE_SRC; s.async = true;
-    s.onload = start; s.onerror = function () { start(true); };
+    s.onload = function () { start(false); }; s.onerror = function () { start(true); };
     document.head.appendChild(s);
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();

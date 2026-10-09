@@ -27,7 +27,7 @@ export default function Lab() {
     <div className="eulst-lab" id="lab" style={{ ["--item" as string]: first?.color }}>
       {/* Feuille statique propre à cet accueil, chargée seulement sur cette page. */}
       {/* eslint-disable-next-line @next/next/no-css-tags */}
-      <link rel="stylesheet" href="/labo/lab.css" precedence="default" />
+      <link rel="stylesheet" href="/labo/lab.css?v=2" precedence="default" />
       <canvas id="gl" aria-hidden="true" />
       <div className="crt" aria-hidden="true" />
 
@@ -74,7 +74,7 @@ export default function Lab() {
       </div>
 
       <script id="lab-data" type="application/json" dangerouslySetInnerHTML={{ __html: data }} />
-      <script src="/labo/lab.js" async />
+      <script src="/labo/lab.js?v=2" async />
     </div>
   );
 }
