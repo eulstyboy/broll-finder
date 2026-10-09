@@ -25,3 +25,7 @@ L’accueil `/` affiche désormais `src/app/_lab.tsx` : un objet 3D par projet v
 L’ancien accueil reste dans `src/app/_landing.tsx`. Pour y revenir, réimporter `Landing` dans `src/app/[[...slug]]/page.tsx`.
 
 Un projet peut aussi recevoir une face de cube dessinée en pixel art via le champ `face` (palette + lignes d’index), généré par l’éditeur de projet. Sans `face`, le cube garde son dessin par défaut.
+
+## Éditeur de projets
+
+`public/edit/index.html` est l’outil qui génère une entrée de `_projects.ts` (fiche, couleur, face du cube en pixel art). Il est servi sur `eulst.app/edit/` et, par réécriture selon l’hôte dans `next.config.ts`, à la racine de `edit.eulst.app` une fois ce domaine ajouté au projet Vercel. Il ne contient aucune donnée privée et n’écrit rien sur le serveur.

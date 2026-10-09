@@ -10,6 +10,9 @@ const nextConfig: NextConfig = {
       // Résoudre l'outil statique avant la route [[...slug]].
       beforeFiles: [
         { source: "/hofmann-trace/", destination: "/hofmann-trace/index.html" },
+        // Éditeur de projets : edit.eulst.app (domaine à ajouter au projet Vercel) et eulst.app/edit/.
+        { source: "/", has: [{ type: "host", value: "edit.eulst.app" }], destination: "/edit/index.html" },
+        { source: "/edit/", destination: "/edit/index.html" },
       ],
     };
   },
