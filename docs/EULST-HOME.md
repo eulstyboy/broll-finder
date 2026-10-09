@@ -17,3 +17,9 @@ Hofmann Trace est distribué sous GPL-3.0-only. La licence est incluse dans son 
 Exécuter `npm ci` et `npm run build`, puis tester les pages sur le serveur Next.js. Vérifier `/`, `/hofmann-trace`, `/hofmann-trace/`, `/hofmann-trace/manifest.webmanifest`, `/hofmann-trace/sw.js`, `/broll` et une URL inconnue.
 
 Avec `BASIC_AUTH_PASSWORD` configuré, B-Roll et ses API doivent continuer de demander une authentification ; l’accueil et Hofmann restent publics. Ne pas saisir de vraie clé API pour tester la simple page d’accueil.
+
+## Accueil « laboratoire » (oct. 2026)
+
+L’accueil `/` affiche désormais `src/app/_lab.tsx` : un objet 3D par projet visible et public, avec un scroll à forte résistance. Les projets, leurs textes, leur couleur (`color`) et leurs étiquettes (`traits`) viennent toujours de `src/app/_projects.ts`. L’animation et le style sont dans `public/labo/lab.js` et `public/labo/lab.css` ; Three.js est chargé depuis cdnjs. Le réglage de résistance est `RESIST` dans `lab.js`.
+
+L’ancien accueil reste dans `src/app/_landing.tsx`. Pour y revenir, réimporter `Landing` dans `src/app/[[...slug]]/page.tsx`.

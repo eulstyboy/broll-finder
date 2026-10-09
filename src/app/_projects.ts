@@ -10,6 +10,9 @@ export type Project = {
   image?: string;
   // Légende sous la vignette ; sinon celle de l'illustration par défaut.
   caption?: string;
+  // Vitrine de l'accueil : couleur de l'objet et petites étiquettes sous la description.
+  color?: string;
+  traits?: string[];
   visible: boolean;
 };
 
@@ -25,6 +28,8 @@ export const projects: Project[] = [
     access: "public",
     artwork: "hofmann",
     image: "/projects/hofmann-trace.svg",
+    color: "#4d5eff",
+    traits: ["Vectoriel", "Export SVG · EPS", "Mobile"],
     visible: true,
   },
   {
@@ -37,6 +42,8 @@ export const projects: Project[] = [
     artwork: "generic",
     image: "/projects/rene-tiles.svg",
     caption: "Chaque photo trouve sa place.",
+    color: "#ff8a3d",
+    traits: ["100 % local", "Calques"],
     visible: true,
   },
   {
@@ -49,6 +56,8 @@ export const projects: Project[] = [
     artwork: "generic",
     image: "/projects/resonances.svg",
     caption: "La couleur est la touche. L’œil est le marteau.",
+    color: "#ff4f9a",
+    traits: ["Suivi du regard", "Caméra", "Son"],
     visible: true,
   },
   {
