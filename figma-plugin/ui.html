@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="application-version" content="1.8.44">
+<meta name="application-version" content="1.8.45">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#141414">
 <title>Hofmann Trace</title>
@@ -4648,7 +4648,6 @@ var WORKER_SOURCE = "/* The same geometry implementation is assembled here and i
   }
   $('referenceImport').addEventListener('click',function(){$('referenceFile').value='';$('referenceFile').click();});
   $('referenceFile').addEventListener('change',function(){var file=this.files&&this.files[0];if(file)importReferenceFile(file);});
-  var REFERENCE_TYPES=['image/png','image/jpeg','image/webp','image/gif'];
   async function importReferenceFile(file){
     var token=++referenceImportVersion;
     if(file.size>25000000){setStatus('Choose an image smaller than 25 MB.');return;}
@@ -4670,16 +4669,16 @@ var WORKER_SOURCE = "/* The same geometry implementation is assembled here and i
     var wrap=$('wrap'),hint=document.createElement('div'),depth=0;hint.className='drop-hint';hint.hidden=true;hint.innerHTML='<span>Drop to use as reference image</span>';wrap.appendChild(hint);
     function carriesFiles(e){var t=e.dataTransfer&&e.dataTransfer.types;return!!t&&Array.prototype.indexOf.call(t,'Files')>=0;}
     function hide(){depth=0;hint.hidden=true;}
-    wrap.addEventListener('dragenter',function(e){if(!carriesFiles(e))return;e.preventDefault();depth++;hint.hidden=false;});
+    wrap.addEventListener('dragenter',function(e){if(!carriesFiles(e))return;e.preventDefault();e.dataTransfer.dropEffect='copy';depth++;hint.hidden=false;});
     wrap.addEventListener('dragover',function(e){if(!carriesFiles(e))return;e.preventDefault();e.dataTransfer.dropEffect='copy';hint.hidden=false;});
     wrap.addEventListener('dragleave',function(e){if(!carriesFiles(e))return;depth=Math.max(0,depth-1);if(!depth)hint.hidden=true;});
     wrap.addEventListener('drop',function(e){if(!carriesFiles(e))return;e.preventDefault();e.stopPropagation();hide();
-      var files=Array.prototype.slice.call(e.dataTransfer.files||[]),file=files.find(function(f){return REFERENCE_TYPES.indexOf(f.type)>=0;});
-      if(!file){setStatus(files.length?'Drop a PNG, JPEG, WebP or GIF image to use it as a reference.':'Could not read the dropped file.');return;}
+      var files=Array.prototype.slice.call(e.dataTransfer.files||[]),file=files.find(function(f){return /^image\//.test(f.type)||(!f.type&&/\.(png|jpe?g|webp|gif|avif|bmp)$/i.test(f.name));});
+      if(!file){setStatus(files.length?'Drop an image (PNG, JPEG, WebP or GIF) to use it as a reference.':'Could not read the dropped file.');return;}
       importReferenceFile(file);});
     // A file dropped anywhere else must not make the browser leave the app and lose the drawing.
-    window.addEventListener('dragover',function(e){if(carriesFiles(e)){e.preventDefault();e.dataTransfer.dropEffect='none';}});
-    window.addEventListener('drop',function(e){if(carriesFiles(e)){e.preventDefault();hide();}});
+    window.addEventListener('dragover',function(e){if(carriesFiles(e)){e.preventDefault();if(!wrap.contains(e.target))e.dataTransfer.dropEffect='none';}});
+    window.addEventListener('drop',function(e){if(carriesFiles(e)&&!wrap.contains(e.target)){e.preventDefault();hide();}});
     window.addEventListener('dragend',hide);
   })();
   // Image decoding is separate from geometry so imports do not wait for themselves.
