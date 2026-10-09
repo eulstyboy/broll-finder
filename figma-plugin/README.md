@@ -48,6 +48,6 @@ project; `listing/logo.svg` is its export.
 1. Enable two-factor authentication on the Figma account (required to publish).
 2. Figma desktop → **Plugins → Development → Import plugin from manifest…** → this `manifest.json`.
 3. **Plugins → Development → Hofmann Trace → Publish**, fill the form from `listing/LISTING.md`.
-4. Figma assigns the plug-in ID: put it in `manifest.json` in place of `hofmann-trace-dev`
-   and commit, so updates go to the same listing.
+4. The plug-in ID assigned by Figma (`1690359935924296227`) is in `manifest.json`; keep it so
+   updates go to the same listing.
 5. The app is GPL-3.0 (`LICENSE`): the published plug-in stays under the same licence.

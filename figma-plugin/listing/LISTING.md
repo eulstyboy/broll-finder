@@ -75,7 +75,6 @@ Answers that match the code as it is:
 
 1. In Figma desktop, enable two-factor authentication (required to publish).
 2. **Plugins → Development → Import plugin from manifest…** → `figma-plugin/manifest.json`.
-3. Publish: Figma gives the plug-in its own ID. Replace `hofmann-trace-dev` in
-   `manifest.json` with that ID and commit it, so later updates publish to the same listing.
+3. The plug-in ID from Figma (`1690359935924296227`) is already in `manifest.json`.
 4. Optional: a real screenshot of the inserted layer in Figma (layers panel visible) makes
    a strong 5th carousel image.
