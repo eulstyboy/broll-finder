@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="application-version" content="1.8.45">
+<meta name="application-version" content="1.8.46">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#141414">
 <title>Hofmann Trace</title>
@@ -424,6 +424,7 @@
     <symbol id="i-horizontal" viewBox="0 0 24 24"><path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4"/></symbol>
     <symbol id="i-vertical" viewBox="0 0 24 24"><path d="M12 3v18M8 7l4-4 4 4M8 17l4 4 4-4"/></symbol>
     <symbol id="i-contrast" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></symbol>
+    <symbol id="i-rotate" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/><rect x="8.5" y="8.5" width="7" height="7" rx="1" transform="rotate(20 12 12)"/></symbol>
     <symbol id="i-fit" viewBox="0 0 24 24"><path d="M3 8V3h5M16 3h5v5M21 16v5h-5M8 21H3v-5"/></symbol>
     <symbol id="i-sym-v" viewBox="0 0 24 24"><path d="M12 3v18" stroke-dasharray="2.4 2.4"/><path d="M9 7.5L3.5 12 9 16.5z" fill="currentColor"/><path d="M15 7.5l5.5 4.5-5.5 4.5z" fill="currentColor"/></symbol>
     <symbol id="i-sym-h" viewBox="0 0 24 24"><path d="M3 12h18" stroke-dasharray="2.4 2.4"/><path d="M7.5 9L12 3.5 16.5 9z" fill="currentColor"/><path d="M7.5 15L12 20.5l4.5-5.5z" fill="currentColor"/></symbol>
@@ -584,6 +585,7 @@
           <div class="row"><label for="refScale">image size</label><input id="refScale" type="range" min="10" max="400" value="100"></div>
           <div class="row"><label for="refX">horizontal</label><input id="refX" type="range" min="-100" max="100" value="0"></div>
           <div class="row"><label for="refY">vertical</label><input id="refY" type="range" min="-100" max="100" value="0"></div>
+          <div class="row"><label for="refRotate">rotation</label><input id="refRotate" type="range" min="-180" max="180" step="1" value="0"></div>
           <div class="ref-actions"><button type="button" id="refFit">Fit image</button><button type="button" id="refRemove">Remove</button></div>
           <h2>from contrast</h2><p class="hintbox">Live preview while adjusting contrast. Hofmann contours refine after a short pause. More rows and columns capture more detail.</p>
           <div class="row"><label for="traceThreshold">contrast cutoff</label><input id="traceThreshold" type="range" min="0" max="255" value="128"></div>
@@ -4610,7 +4612,7 @@ var WORKER_SOURCE = "/* The same geometry implementation is assembled here and i
     if(ref===undefined||ref===null)return null;
     if(typeof ref!=='object'||typeof ref.src!=='string'||ref.src.length>4000000||!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+=*$/.test(ref.src))throw new Error('reference image');
     function num(k,f,min,max){var v=ref[k]===undefined?f:ref[k];if(typeof v!=='number'||!Number.isFinite(v))throw new Error('reference setting');return Math.max(min,Math.min(max,v));}
-    return{src:ref.src,width:num('width',1,1,1600),height:num('height',1,1,1600),opacity:num('opacity',.4,0,1),scale:num('scale',1,.1,4),x:num('x',0,-1,1),y:num('y',0,-1,1),visible:ref.visible!==false,threshold:num('threshold',128,0,255),invert:!!ref.invert};
+    return{src:ref.src,width:num('width',1,1,1600),height:num('height',1,1,1600),opacity:num('opacity',.4,0,1),scale:num('scale',1,.1,4),x:num('x',0,-1,1),y:num('y',0,-1,1),rotation:num('rotation',0,-180,180),visible:ref.visible!==false,threshold:num('threshold',128,0,255),invert:!!ref.invert};
   }
   function referenceForProject(includeData){
     if(!state.reference)return null;var ref=Object.assign({},state.reference);
@@ -4634,14 +4636,15 @@ var WORKER_SOURCE = "/* The same geometry implementation is assembled here and i
   }
   function referenceSvg(){
     var ref=state.reference;if(!ref||!ref.visible)return'';var asset=referenceAssets[ref.assetId];if(!asset)return'';var b=referenceBounds(ref);
-    return'<image id="referenceImage" pointer-events="none" x="'+b.x+'" y="'+b.y+'" width="'+b.w+'" height="'+b.h+'" opacity="'+ref.opacity+'" href="'+asset.src+'"/>';
+    var r=ref.rotation||0,turn=r?' transform="rotate('+r+' '+(b.x+b.w/2)+' '+(b.y+b.h/2)+')"':'';
+    return'<image id="referenceImage" pointer-events="none" x="'+b.x+'" y="'+b.y+'" width="'+b.w+'" height="'+b.h+'"'+turn+' opacity="'+ref.opacity+'" href="'+asset.src+'"/>';
   }
   var traceTimer=null,traceAutoEnabled=false;
   function traceSignature(){return JSON.stringify([state.grid,state.cols,state.rows,state.offset,state.offsetCentered,state.defaultPct,state.bevel,state.fillet,state.nodes,state.contours,state.reference,$('traceStyle').value]);}
   function invalidateTrace(){traceGeneration++;clearTimeout(traceTimer);traceTimer=null;tracePreview=null;$('traceApply').disabled=true;}
   function syncReferenceUi(){
     var ref=state.reference;$('referenceControls').hidden=!ref;
-    if(ref){[['refOpacity','opacity',100],['refScale','scale',100],['refX','x',100],['refY','y',100],['traceThreshold','threshold',1]].forEach(function(a){$(a[0]).value=ref[a[1]]*a[2];});
+    if(ref){[['refOpacity','opacity',100],['refScale','scale',100],['refX','x',100],['refY','y',100],['refRotate','rotation',1],['traceThreshold','threshold',1]].forEach(function(a){$(a[0]).value=ref[a[1]]*a[2];});
       var visible=ref.visible&&ref.opacity>0;$('refOpacity').value=visible?ref.opacity*100:0;$('refVisible').checked=visible;$('traceInvert').checked=ref.invert;}
     if(tracePreview&&tracePreview.signature!==traceSignature())invalidateTrace();
     $('traceApply').disabled=!tracePreview||tracePreview.approximate||geometryBusy;$('tracePreviewBtn').disabled=!ref||referenceLoading>0||geometryBusy;
@@ -4683,7 +4686,7 @@ var WORKER_SOURCE = "/* The same geometry implementation is assembled here and i
   })();
   // Image decoding is separate from geometry so imports do not wait for themselves.
   function whenIdleGeometry(){return new Promise(function(resolve){function check(){if(!geometryBusy)resolve();else setTimeout(check,10);}check();});}
-  [['refOpacity','opacity',100],['refScale','scale',100],['refX','x',100],['refY','y',100],['traceThreshold','threshold',1]].forEach(function(a){
+  [['refOpacity','opacity',100],['refScale','scale',100],['refX','x',100],['refY','y',100],['refRotate','rotation',1],['traceThreshold','threshold',1]].forEach(function(a){
     $(a[0]).addEventListener('input',function(){if(!state.reference)return;beginControlEdit('reference');
       var value=+this.value/a[2];if(a[0]==='refOpacity'){state.reference.visible=value>0;if(value>0)state.reference.opacity=value;}else state.reference[a[1]]=value;
       if(a[0]==='traceThreshold'||traceAutoEnabled)queueTracePreview();else invalidateTrace();scheduleRender();});
@@ -4692,14 +4695,15 @@ var WORKER_SOURCE = "/* The same geometry implementation is assembled here and i
   [['refVisible','visible'],['traceInvert','invert']].forEach(function(a){$(a[0]).addEventListener('change',function(){if(!state.reference)return;finishControlEdit();commit();state.reference[a[1]]=this.checked;
     if(a[0]==='refVisible'&&this.checked&&state.reference.opacity===0)state.reference.opacity=.4;
     if(a[0]==='traceInvert'||traceAutoEnabled)queueTracePreview();else invalidateTrace();render();});});
-  $('refFit').addEventListener('click',function(){if(!state.reference)return;commit();state.reference.scale=1;state.reference.x=state.reference.y=0;invalidateTrace();render();});
+  $('refFit').addEventListener('click',function(){if(!state.reference)return;commit();state.reference.scale=1;state.reference.x=state.reference.y=0;state.reference.rotation=0;invalidateTrace();render();});
   $('refRemove').addEventListener('click',function(){referenceImportVersion++;if(!state.reference)return;commit();state.reference=null;invalidateTrace();render();});
   $('traceStyle').addEventListener('change',function(){queueTracePreview();render();});
   function contrastKeys(){
     var ref=state.reference,asset=ref&&referenceAssets[ref.assetId];if(!asset||!asset.ready)return[];
-    var size=canvasSize(),sc=Math.min(1,700/Math.max(size.W,size.H)),b=referenceBounds(ref),cacheKey=JSON.stringify([ref.assetId,b,size]);
+    var size=canvasSize(),sc=Math.min(1,700/Math.max(size.W,size.H)),b=referenceBounds(ref),r=ref.rotation||0,cacheKey=JSON.stringify([ref.assetId,b,r,size]);
     if(!referenceSamples||referenceSamples.key!==cacheKey){
-      var cv=document.createElement('canvas');cv.width=Math.ceil(size.W*sc);cv.height=Math.ceil(size.H*sc);var ctx=cv.getContext('2d',{willReadFrequently:true});ctx.drawImage(asset.image,b.x*sc,b.y*sc,b.w*sc,b.h*sc);
+      var cv=document.createElement('canvas');cv.width=Math.ceil(size.W*sc);cv.height=Math.ceil(size.H*sc);var ctx=cv.getContext('2d',{willReadFrequently:true});
+      ctx.translate((b.x+b.w/2)*sc,(b.y+b.h/2)*sc);ctx.rotate(r*Math.PI/180);ctx.drawImage(asset.image,-b.w/2*sc,-b.h/2*sc,b.w*sc,b.h*sc);
       referenceSamples={key:cacheKey,data:ctx.getImageData(0,0,cv.width,cv.height).data,w:cv.width,h:cv.height};
     }
     var out=[],sample=referenceSamples;
@@ -6061,7 +6065,7 @@ var WORKER_SOURCE = "/* The same geometry implementation is assembled here and i
   $('symBtn').addEventListener('pointerleave',leaveSym);$('symMenu').addEventListener('pointerenter',function(){clearTimeout(symLeaveTimer);});$('symMenu').addEventListener('pointerleave',leaveSym);
   document.addEventListener('pointerdown',function(e){if(!e.target.closest('.tool-family,.tool-submenu'))closeToolMenus();});
   document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeToolMenus();closeSymMenu();}if((e.key==='b'||e.key==='e')&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.target.isContentEditable&&!/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)&&!document.querySelector('dialog[open]'))setTool(e.key==='e'?'erase':'brush');});
-  var items=[['sizeIn','Global size','size'],['bevelIn','Corner rounding','rounding'],['filletIn','Junction smoothing','junction'],['guideIn','Grid opacity','grid-opacity'],['refOpacity','Image opacity','eye'],['refScale','Image size','size'],['refX','Image horizontal position','horizontal'],['refY','Image vertical position','vertical'],['traceThreshold','Contrast cutoff','contrast']];
+  var items=[['sizeIn','Global size','size'],['bevelIn','Corner rounding','rounding'],['filletIn','Junction smoothing','junction'],['guideIn','Grid opacity','grid-opacity'],['refOpacity','Image opacity','eye'],['refScale','Image size','size'],['refX','Image horizontal position','horizontal'],['refY','Image vertical position','vertical'],['refRotate','Image rotation','rotate'],['traceThreshold','Contrast cutoff','contrast']];
   items.forEach(function(a,index){
     var input=$(a[0]),row=input.closest('.row'),anchor=document.createComment('control '+a[0]);row.before(anchor);
     var output=row.querySelector('output');if(!output){output=document.createElement('output');output.htmlFor=a[0];row.append(output);}
@@ -6097,7 +6101,7 @@ var WORKER_SOURCE = "/* The same geometry implementation is assembled here and i
     dock.querySelector('.dock-image-tools').hidden=!dockImage;imageButton.setAttribute('aria-pressed',String(dockImage));
     dockRows.forEach(function(o){if(compact)o.row.hidden=o.id!==dockActive;var active=o.id===dockActive;o.button.setAttribute('aria-pressed',String(active));o.button.disabled=o.image&&!state.reference;
       if(o.id==='sizeIn')o.output.textContent=state.defaultPct+' %';
-      else o.output.textContent=Math.round(o.id==='filletIn'?o.input.value/60*100:+o.input.value)+(o.id==='traceThreshold'?'':' %');
+      else o.output.textContent=Math.round(o.id==='filletIn'?o.input.value/60*100:+o.input.value)+(o.id==='traceThreshold'?'':o.id==='refRotate'?'°':' %');
     });
     dock.querySelector('.dock-contrast').hidden=!(compact&&dockActive==='traceThreshold'&&state.reference);
     var visibility=dock.querySelector('[data-adjust="refOpacity"]'),visible=!!(state.reference&&state.reference.visible&&state.reference.opacity>0);
@@ -6107,7 +6111,7 @@ var WORKER_SOURCE = "/* The same geometry implementation is assembled here and i
     visibility.title=visibilityLabel;visibility.setAttribute('aria-label',visibilityLabel);
   }
   compactQuery.addEventListener('change',function(){syncWorkspaceUi();scheduleRender();});
-  document.querySelectorAll('#refOpacity,#refScale,#refX,#refY,#traceThreshold,#bevelIn,#filletIn,#guideIn').forEach(function(input){input.addEventListener('input',syncWorkspaceUi);});
+  document.querySelectorAll('#refOpacity,#refScale,#refX,#refY,#refRotate,#traceThreshold,#bevelIn,#filletIn,#guideIn').forEach(function(input){input.addEventListener('input',syncWorkspaceUi);});
   $('referenceFile').addEventListener('change',function(){setSettingsOpen(false);});
   workspaceUiReady=true;syncWorkspaceUi();
 
