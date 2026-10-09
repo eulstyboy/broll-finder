@@ -18,6 +18,7 @@ export default function Lab() {
       desc: p.description,
       traits: p.traits ?? [],
       color: p.color ?? "#4d5eff",
+      face: p.face ?? null,
     }));
   const first = items[0];
   const total = pad(items.length);
@@ -27,7 +28,7 @@ export default function Lab() {
     <div className="eulst-lab" id="lab" style={{ ["--item" as string]: first?.color }}>
       {/* Feuille statique propre à cet accueil, chargée seulement sur cette page. */}
       {/* eslint-disable-next-line @next/next/no-css-tags */}
-      <link rel="stylesheet" href="/labo/lab.css?v=2" precedence="default" />
+      <link rel="stylesheet" href="/labo/lab.css?v=3" precedence="default" />
       <canvas id="gl" aria-hidden="true" />
       <div className="crt" aria-hidden="true" />
 
@@ -74,7 +75,7 @@ export default function Lab() {
       </div>
 
       <script id="lab-data" type="application/json" dangerouslySetInnerHTML={{ __html: data }} />
-      <script src="/labo/lab.js?v=2" async />
+      <script src="/labo/lab.js?v=3" async />
     </div>
   );
 }

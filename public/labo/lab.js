@@ -59,6 +59,20 @@ function start(noThree) {
     }
   };
 
+  /* face dessinée dans l'éditeur : palette + lignes d'index base 36 */
+  function drawFace(g, face) {
+    var n = face.rows.length, s = 64 / n;
+    g.fillStyle = "#17181d"; g.fillRect(0, 0, 64, 64);
+    for (var y = 0; y < n; y++) {
+      var row = face.rows[y];
+      for (var x = 0; x < row.length; x++) {
+        var col = face.palette[parseInt(row[x], 36)];
+        if (!col) continue;
+        g.fillStyle = col; g.fillRect(Math.floor(x * s), Math.floor(y * s), Math.ceil(s), Math.ceil(s));
+      }
+    }
+  }
+
   var cube = { size: 1, x: 0, y: 0 }, visH = 1;
   if (gl) {
     renderer.setClearColor(0x0d0e11, 1); renderer.autoClear = false;
@@ -87,7 +101,8 @@ function start(noThree) {
     var geo = new T.BoxGeometry(1, 1, 1);
     items = APPS.map(function (app, i) {
       var cv = document.createElement("canvas"); cv.width = cv.height = 64;
-      (DRAW[app.id] || DRAW.generic)(cv.getContext("2d"), app.color);
+      if (app.face && app.face.rows && app.face.rows.length) drawFace(cv.getContext("2d"), app.face);
+      else (DRAW[app.id] || DRAW.generic)(cv.getContext("2d"), app.color);
       var tex = new T.CanvasTexture(cv); tex.magFilter = T.NearestFilter; tex.minFilter = T.NearestFilter; tex.generateMipmaps = false;
       var grp = new T.Group();
       var mat = new T.MeshLambertMaterial({ map: tex, emissive: new T.Color(app.color), emissiveIntensity: 0 });

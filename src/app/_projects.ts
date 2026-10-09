@@ -13,6 +13,9 @@ export type Project = {
   // Vitrine de l'accueil : couleur de l'objet et petites étiquettes sous la description.
   color?: string;
   traits?: string[];
+  // Face du cube en pixel art (générée par l'éditeur de projet) : palette + lignes d'index (0-9, a-z).
+  // 8, 16 ou 32 lignes. Sans face, le cube garde son dessin par défaut.
+  face?: { palette: string[]; rows: string[] };
   visible: boolean;
 };
 
