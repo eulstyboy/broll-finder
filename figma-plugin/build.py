@@ -21,7 +21,7 @@ s = open(SRC, encoding='utf-8').read()
 bridge = open(os.path.join(HERE, 'src', 'bridge.js'), encoding='utf-8').read()
 
 # web install: no manifest, icon or service worker inside Figma
-s = rep(s, '<link rel="manifest" href="./manifest.webmanifest"><link rel="icon" href="./icon.svg" type="image/svg+xml"><link rel="icon" href="./icon-192.png" sizes="192x192" type="image/png"><link rel="apple-touch-icon" href="./apple-touch-icon.png"></head>',
+s = rep(s, '<link rel="manifest" href="./manifest.webmanifest"><link rel="icon" href="./icon-v2.svg" type="image/svg+xml"><link rel="icon" href="./icon-v2-192.png" sizes="192x192" type="image/png"><link rel="apple-touch-icon" href="./apple-touch-icon-v2.png"></head>',
         '<script>window.__figmaPlugin=true;</script></head>', 'manifest link')
 # plug-in controls in the top bar, before the export menu
 s = rep(s, '    <div class="spacer"></div>\n    <div class="group" style="position:relative">\n      <button type="button" class="ibtn" id="exportBtn"',
