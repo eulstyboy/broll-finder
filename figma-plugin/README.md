@@ -40,8 +40,14 @@ choose `figma-plugin/manifest.json`. Then run it from **Plugins → Development 
 
 ## Publishing to the Figma Community
 
-1. In Figma desktop: **Plugins → Development → New plugin…**, copy the `id` it gives
-   into `manifest.json` (replace `hofmann-trace-dev`).
-2. Publish from **Plugins → Development → Hofmann Trace → Publish**: name, tagline,
-   description, icon (128×128), cover (1920×1080), a few screenshots, support contact.
-3. The app is GPL-3.0: the published plug-in stays under the same licence (link to the source).
+Everything for the publish form is in `listing/`: icon, cover, carousel images and
+`LISTING.md` (name, tagline, description, tags, support contact and the answers for
+the data security form). `listing/logo-project.json` is the logo as a Hofmann Trace
+project; `listing/logo.svg` is its export.
+
+1. Enable two-factor authentication on the Figma account (required to publish).
+2. Figma desktop → **Plugins → Development → Import plugin from manifest…** → this `manifest.json`.
+3. **Plugins → Development → Hofmann Trace → Publish**, fill the form from `listing/LISTING.md`.
+4. Figma assigns the plug-in ID: put it in `manifest.json` in place of `hofmann-trace-dev`
+   and commit, so updates go to the same listing.
+5. The app is GPL-3.0 (`LICENSE`): the published plug-in stays under the same licence.
