@@ -165,6 +165,60 @@ function start(noThree) {
 
   /* ---------- state ---------- */
   var cur = 0, tension = 0, lastInput = 0, busy = false, armed = true, quietT = 0, dragging = false, charge = 0;
+
+  /* vibrations : un cran par graduation de la jauge, un coup plus fort au seuil, un « clac » au passage.
+     Android : navigator.vibrate. iOS (Safari) : astuce de l'interrupteur caché, un tic léger par impulsion. */
+  var canVibrate = typeof navigator.vibrate === "function";
+  var iosHaptic = !canVibrate && coarse && /iP(hone|ad|od)|Macintosh/.test(navigator.userAgent);
+  var lastNotch = 0, edgeBuzzed = false, iosSwitch = null;
+  function iosTap() {
+    try {
+      if (!iosSwitch) {
+        iosSwitch = document.createElement("label");
+        iosSwitch.setAttribute("aria-hidden", "true");
+        iosSwitch.style.cssText = "position:fixed;left:0;top:0;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;z-index:-1";
+        var sw = document.createElement("input");
+        sw.type = "checkbox"; sw.setAttribute("switch", ""); sw.tabIndex = -1;
+        iosSwitch.appendChild(sw); document.body.appendChild(iosSwitch);
+      }
+      iosSwitch.click();
+    } catch (e) { iosHaptic = false; }
+  }
+  /* diagnostic : ajouter #haptique à l'adresse pour afficher l'état des vibrations */
+  var diag = null, lastRes = "—", calls = 0;
+  if (location.hash === "#haptique") {
+    diag = document.createElement("div");
+    diag.style.cssText = "position:fixed;left:8px;right:8px;top:calc(env(safe-area-inset-top,0px) + 48px);z-index:50;font:12px/1.4 ui-monospace,monospace;background:#000;color:#7dffa8;border:2px solid #7dffa8;padding:8px;display:grid;gap:6px";
+    var btn = document.createElement("button");
+    btn.textContent = "Tester une vibration de 300 ms";
+    btn.style.cssText = "font:inherit;padding:8px;background:#7dffa8;color:#000;border:0";
+    btn.addEventListener("click", function (e) { e.stopPropagation(); var r = "absent"; try { r = String(navigator.vibrate(300)); } catch (er) { r = "erreur"; } lastRes = "test 300 ms → " + r; showDiag(); });
+    var txt = document.createElement("div"); diag.appendChild(txt); diag.appendChild(btn); document.body.appendChild(diag);
+    diag._t = txt;
+    setTimeout(showDiag, 0);
+  }
+  function showDiag() {
+    if (!diag) return;
+    var ua = navigator.userActivation;
+    diag._t.textContent = "vibrate : " + (typeof navigator.vibrate === "function" ? "oui" : "non") +
+      " · iOS : " + (iosHaptic ? "oui" : "non") +
+      " · page activée : " + (ua ? (ua.hasBeenActive ? "oui" : "non") : "?") +
+      " · appels : " + calls + " · dernier : " + lastRes;
+  }
+  function buzz(p) {
+    calls++;
+    if (canVibrate) { var r; try { r = navigator.vibrate(p); } catch (e) { canVibrate = false; r = "erreur"; } lastRes = JSON.stringify(p) + " → " + r; showDiag(); return; }
+    lastRes = "pas d'API"; showDiag();
+    if (!iosHaptic) return;
+    if (typeof p === "number") { iosTap(); return; }
+    var t = 0; /* motif : un tic au début de chaque phase « on » */
+    for (var k = 0; k < p.length; k++) { if (k % 2 === 0) { if (t === 0) iosTap(); else setTimeout(iosTap, t); } t += p[k]; }
+  }
+  function hapticTick(at) {
+    var notch = Math.min(10, Math.floor(at * 10 + 1e-6));
+    if (notch > lastNotch) buzz(notch >= 10 ? 45 : 12 + notch * 2);
+    lastNotch = notch;
+  }
   var trans = null, hot = false, hoverAmt = 0, shake = 0, tint = gl ? new T.Color(APPS[0].color) : null;
   var RESIST = reduce ? 180 : 560; /* px de molette pour libérer un objet */
   var DUR = reduce ? .32 : .8;
@@ -182,7 +236,7 @@ function start(noThree) {
     var dir = i > cur ? 1 : -1, from = cur; busy = true; armed = false; charge = 0;
     trans = { from: from, to: i, dir: dir, start: performance.now() };
     if (gl) { items[i].grp.visible = true; items[i].ry = items[from].ry - dir * 1.2; }
-    cur = i; tension = 0; setHot(false); updateHUD();
+    cur = i; tension = 0; lastNotch = 0; buzz([35, 45, 60]); setHot(false); updateHUD();
     setTimeout(function () { if (gl) items[from].grp.visible = false; trans = null; busy = false; if (performance.now() - lastInput > 200) armed = true; }, DUR * 1000);
   }
 
@@ -200,7 +254,10 @@ function start(noThree) {
   addEventListener("touchmove", function (e) {
     if (ty0 == null) return; e.preventDefault(); if (busy) return;
     var raw = (ty0 - e.touches[0].clientY) / (innerHeight * (reduce ? .12 : .3));
-    tension = edgeFor(Math.sign(raw)) ? clamp(raw * .3, -.35, .35) : clamp(raw, -1.12, 1.12);
+    var atEdge = edgeFor(Math.sign(raw));
+    tension = atEdge ? clamp(raw * .3, -.35, .35) : clamp(raw, -1.12, 1.12);
+    if (atEdge && Math.abs(tension) >= .35) { if (!edgeBuzzed) buzz([20, 40, 20]); edgeBuzzed = true; } else edgeBuzzed = false;
+    if (!atEdge) hapticTick(Math.abs(tension));
     lastInput = performance.now();
   }, { passive: false });
   addEventListener("touchend", function () {
@@ -248,6 +305,7 @@ function start(noThree) {
     hoverAmt += ((hot ? 1 : 0) - hoverAmt) * Math.min(1, dt * 10);
     shake = Math.max(0, shake - dt * 2.6);
     var at = Math.abs(tension), strain = reduce ? 0 : Math.max(0, at - .45) / .55;
+    if (!busy && !dragging) hapticTick(at);
 
     if (gl) {
       tint.lerp(items[cur].col, Math.min(1, dt * 4));
