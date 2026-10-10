@@ -1875,6 +1875,7 @@ function showOver(){
 /* leaderboard: shared on eulst.app (/scores/lupercalia/), this browser's own list when the server can't be reached */
 const LB_URL='/scores/lupercalia/';
 let shared=null; // last shared top 10, or null when offline
+let lbWhy='';
 function getLocal(){const a=store.get('lp.scores',[]);return Array.isArray(a)?a:[];}
 function saveLocal(entry){const a=getLocal();a.push(entry);a.sort((x,y)=>y.score-x.score);store.set('lp.scores',a.slice(0,20));}
 async function lbFetch(opts){
@@ -1883,13 +1884,14 @@ async function lbFetch(opts){
   catch(e){return{ok:false,reason:'offline'};}
   finally{clearTimeout(tm);}
 }
-async function loadShared(){const r=await lbFetch({method:'GET'});shared=r.ok&&Array.isArray(r.top)?r.top:null;renderAllLb();}
+async function loadShared(){const r=await lbFetch({method:'GET'});shared=r.ok&&Array.isArray(r.top)?r.top:null;
+  lbWhy=r.ok?'':r.reason==='not-configured'?'base non reliée au site':r.reason==='storage-error'?'la base refuse la connexion':r.reason==='offline'?'pas de réseau':'erreur '+(r.status||'?');renderAllLb();}
 let lastMine=null;
 function renderLb(el,mine){
   el.textContent='';
   const rows=shared||getLocal();
   const cap=document.createElement('p');cap.className='lb-cap';
-  cap.textContent=shared?'Classement de tous les joueurs':'Classement de ce téléphone (serveur injoignable)';
+  cap.textContent=shared?'Classement de tous les joueurs':'Classement de ce téléphone ('+(lbWhy||'serveur injoignable')+')';
   el.append(cap);
   if(!rows.length){const p=document.createElement('p');p.className='empty';p.textContent='Aucun score pour l\'instant. Le premier service est pour toi.';el.append(p);return;}
   const tb=document.createElement('table');tb.className='lb';
