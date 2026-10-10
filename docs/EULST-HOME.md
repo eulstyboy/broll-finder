@@ -39,3 +39,9 @@ Jeu de crêpes au gyroscope, fichier autonome dans `public/lupercalia/index.html
 `src/app/scores/lupercalia/route.ts` (GET : top 10, POST : enregistrer) stocke les scores dans Upstash Redis via son API REST, sans dépendance. Il lit `KV_REST_API_URL` / `KV_REST_API_TOKEN` (créées par l'intégration Upstash du Marketplace Vercel) ou `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`. Sans elles, la route répond 503 et le jeu affiche les scores du téléphone. La route est hors de `/api/`, protégé par mot de passe. Garde-fous : scores impossibles refusés (au plus 14 points par crêpe), 5 envois par minute et par adresse, 100 meilleurs conservés.
 
 Chaque projet appartient à un rayon via le champ `section` (`"outil"`, `"experience"` ou `"jeu"`, « Outils » par défaut). La vitrine les range dans cet ordre, affiche les rayons en haut de page et groupe l’index de gauche.
+
+## Jeux installables (Bille Foraine, Lupercalia)
+
+`public/bille/` et `public/lupercalia/` contiennent chacun un `manifest.webmanifest`, des icônes (tirées des faces de cube) et un `sw.js`. Les jeux s’installent depuis le navigateur (Chrome : icône d’installation ou menu « Installer l’application » ; Safari iOS : Partager → « Sur l’écran d’accueil »), s’ouvrent en plein écran, en portrait, et restent jouables hors ligne après la première visite.
+
+Le service worker sert les fichiers du jeu depuis le réseau d’abord : une mise à jour poussée est visible au prochain lancement, sans changer de version. Les polices et Three.js sont préchargés à l’installation. Les scores (`/api/…`) ne passent jamais par le cache. Pour forcer un nettoyage complet du cache, incrémenter `CACHE` dans le `sw.js` du jeu.

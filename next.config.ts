@@ -24,6 +24,11 @@ const nextConfig: NextConfig = {
         source: "/hofmann-trace/sw.js",
         headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }],
       },
+      // Jeux installables : le service worker doit toujours être relu pour livrer les mises à jour.
+      ...["bille", "lupercalia"].map((game) => ({
+        source: `/${game}/sw.js`,
+        headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }],
+      })),
     ];
   },
 };
