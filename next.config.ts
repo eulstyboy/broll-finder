@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
       beforeFiles: [
         { source: "/hofmann-trace/", destination: "/hofmann-trace/index.html" },
         { source: "/bille/", destination: "/bille/index.html" },
+        { source: "/lupercalia/", destination: "/lupercalia/index.html" },
         // Éditeur de projets : edit.eulst.app (domaine à ajouter au projet Vercel) et eulst.app/edit/.
         { source: "/", has: [{ type: "host", value: "edit.eulst.app" }], destination: "/edit/index.html" },
         { source: "/edit/", destination: "/edit/index.html" },

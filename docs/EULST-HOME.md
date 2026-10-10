@@ -29,3 +29,7 @@ Un projet peut aussi recevoir une face de cube dessinée en pixel art via le cha
 ## Éditeur de projets
 
 `public/edit/index.html` est l’outil qui génère une entrée de `_projects.ts` (fiche, couleur, face du cube en pixel art). Il est servi sur `eulst.app/edit/` et, par réécriture selon l’hôte dans `next.config.ts`, à la racine de `edit.eulst.app` une fois ce domaine ajouté au projet Vercel. Il ne contient aucune donnée privée et n’écrit rien sur le serveur.
+
+## Lupercalia
+
+Jeu de crêpes au gyroscope, fichier autonome dans `public/lupercalia/index.html` (Three.js et polices chargés depuis cdnjs et Google Fonts). Servi sur `eulst.app/lupercalia/` par la même réécriture que Bille et Hofmann. Le gyroscope et la voix du chef demandent le HTTPS ; sur iPhone l'autorisation des capteurs est demandée au bouton de départ. Le tableau des scores est local au navigateur (clé `lp.scores`).
