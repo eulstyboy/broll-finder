@@ -143,6 +143,9 @@ function start(noThree) {
   var pad = function (n) { return String(n).padStart(2, "0"); };
   var links = Array.prototype.slice.call($("index").querySelectorAll("a[data-i]"));
   links.forEach(function (a) { a.addEventListener("click", function (e) { e.preventDefault(); go(+a.dataset.i); }); });
+  /* rayons : un clic saute au premier objet de la catégorie */
+  var cats = Array.prototype.slice.call(lab.querySelectorAll(".cats [data-cat]"));
+  cats.forEach(function (b) { b.addEventListener("click", function () { go(+b.dataset.i); }); });
 
   function updateHUD() {
     var a = APPS[cur];
@@ -159,6 +162,7 @@ function start(noThree) {
     $("gPrev").textContent = cur > 0 ? APPS[cur - 1].name : "—";
     $("gNext").textContent = cur < N - 1 ? APPS[cur + 1].name : "—";
     links.forEach(function (b, i) { b.setAttribute("aria-current", i === cur ? "true" : "false"); });
+    cats.forEach(function (b) { b.setAttribute("aria-current", b.dataset.cat === a.section ? "true" : "false"); });
     var slot = $("slot"); slot.classList.remove("enter"); void slot.offsetWidth; slot.classList.add("enter");
     $("live").textContent = a.name + ", " + (cur + 1) + " sur " + N;
   }
@@ -220,7 +224,7 @@ function start(noThree) {
     lastNotch = notch;
   }
   var trans = null, hot = false, hoverAmt = 0, shake = 0, tint = gl ? new T.Color(APPS[0].color) : null;
-  var RESIST = reduce ? 180 : 560; /* px de molette pour libérer un objet */
+  var RESIST = reduce ? 180 : 380; /* px de molette pour libérer un objet */
   var DUR = reduce ? .32 : .8;
 
   function edgeFor(dir) { return (dir > 0 && cur === N - 1) || (dir < 0 && cur === 0); }
@@ -253,7 +257,7 @@ function start(noThree) {
   addEventListener("touchstart", function (e) { if (e.touches.length !== 1) return; ty0 = e.touches[0].clientY; dragging = true; }, { passive: true });
   addEventListener("touchmove", function (e) {
     if (ty0 == null) return; e.preventDefault(); if (busy) return;
-    var raw = (ty0 - e.touches[0].clientY) / (innerHeight * (reduce ? .12 : .3));
+    var raw = (ty0 - e.touches[0].clientY) / (innerHeight * (reduce ? .12 : .2));
     var atEdge = edgeFor(Math.sign(raw));
     tension = atEdge ? clamp(raw * .3, -.35, .35) : clamp(raw, -1.12, 1.12);
     if (atEdge && Math.abs(tension) >= .35) { if (!edgeBuzzed) buzz([20, 40, 20]); edgeBuzzed = true; } else edgeBuzzed = false;
@@ -299,7 +303,7 @@ function start(noThree) {
 
   function loop(now) {
     var dt = Math.min(.05, (now - last) / 1000); last = now; clock += dt;
-    if (charge && !busy) { tension += charge * dt * 7; lastInput = now; if (Math.abs(tension) >= 1) go(cur + charge); }
+    if (charge && !busy) { tension += charge * dt * 10; lastInput = now; if (Math.abs(tension) >= 1) go(cur + charge); }
     if (!dragging && !charge && now - lastInput > 140) tension *= Math.exp(-dt * (reduce ? 9 : 4.5));
     if (Math.abs(tension) < .001) tension = 0;
     hoverAmt += ((hot ? 1 : 0) - hoverAmt) * Math.min(1, dt * 10);

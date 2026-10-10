@@ -5,6 +5,14 @@ import { brand, projects } from "./_projects";
 // Ancien accueil conservé dans _landing.tsx (pour revenir en arrière, le réimporter dans [[...slug]]/page.tsx).
 
 const pad = (n: number) => String(n).padStart(2, "0");
+
+// Rayons de la vitrine, dans l'ordre d'affichage. Un projet sans section va dans « Outils ».
+const SECTIONS = [
+  { id: "outil", label: "Outils" },
+  { id: "experience", label: "Expériences" },
+  { id: "jeu", label: "Jeux" },
+] as const;
+const sectionRank = (id: string) => SECTIONS.findIndex((x) => x.id === id);
 const isExternal = (href: string) => /^https?:\/\//.test(href);
 
 export default function Lab() {
@@ -19,7 +27,14 @@ export default function Lab() {
       traits: p.traits ?? [],
       color: p.color ?? "#4d5eff",
       face: p.face ?? null,
-    }));
+      section: p.section ?? "outil",
+    }))
+    .sort((a, b) => sectionRank(a.section) - sectionRank(b.section));
+  const shelves = SECTIONS.map((sec) => ({
+    ...sec,
+    first: items.findIndex((it) => it.section === sec.id),
+    count: items.filter((it) => it.section === sec.id).length,
+  })).filter((sec) => sec.count > 0);
   const first = items[0];
   const total = pad(items.length);
   const data = JSON.stringify(items).replace(/</g, "\\u003c");
@@ -28,24 +43,34 @@ export default function Lab() {
     <div className="eulst-lab" id="lab" style={{ ["--item" as string]: first?.color }}>
       {/* Feuille statique propre à cet accueil, chargée seulement sur cette page. */}
       {/* eslint-disable-next-line @next/next/no-css-tags */}
-      <link rel="stylesheet" href="/labo/lab.css?v=6" precedence="default" />
+      <link rel="stylesheet" href="/labo/lab.css?v=7" precedence="default" />
       <canvas id="gl" aria-hidden="true" />
       <div className="crt" aria-hidden="true" />
 
       <div className="hud" id="hud">
         <header className="top">
           <a className="mark" href={brand.website}>eulst<span>.app</span></a>
+          <nav className="cats" aria-label="Catégories">
+            {shelves.map((sec) => (
+              <button type="button" key={sec.id} data-cat={sec.id} data-i={sec.first} aria-current={first?.section === sec.id ? "true" : "false"}>
+                {sec.label}<span className="c">{sec.count}</span>
+              </button>
+            ))}
+          </nav>
           <span className="count">Laboratoire · <b id="cnt">01</b>/{total}</span>
         </header>
 
         <ul className="index" id="index" aria-label="Projets">
-          {items.map((p, i) => (
+          {items.map((p, i) => [
+            i === 0 || items[i - 1].section !== p.section ? (
+              <li className="sec" key={`sec-${p.section}`} aria-hidden="true">{SECTIONS.find((x) => x.id === p.section)?.label}</li>
+            ) : null,
             <li key={p.id}>
               <a href={p.url} data-i={i} aria-current={i === 0 ? "true" : "false"} {...(isExternal(p.url) ? { target: "_blank", rel: "noopener" } : {})}>
                 <span className="n">{pad(i + 1)}</span><span className="nm">{p.name}</span>
               </a>
-            </li>
-          ))}
+            </li>,
+          ])}
         </ul>
 
         {first && (
@@ -75,7 +100,7 @@ export default function Lab() {
       </div>
 
       <script id="lab-data" type="application/json" dangerouslySetInnerHTML={{ __html: data }} />
-      <script src="/labo/lab.js?v=6" async />
+      <script src="/labo/lab.js?v=7" async />
     </div>
   );
 }

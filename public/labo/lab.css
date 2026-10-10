@@ -16,7 +16,15 @@ html:has(.eulst-lab),html:has(.eulst-lab) body{height:100%;overflow:hidden;overs
   background:repeating-linear-gradient(to bottom,transparent 0 2px,rgba(0,0,0,.16) 2px 3px),radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.55) 100%)}
 .eulst-lab .hud{position:fixed;inset:0;touch-action:none}
 
-.eulst-lab .top{position:absolute;left:20px;right:20px;top:calc(env(safe-area-inset-top,0px) + 18px);display:flex;justify-content:space-between;align-items:baseline;gap:16px}
+.eulst-lab .top{position:absolute;left:20px;right:20px;top:calc(env(safe-area-inset-top,0px) + 18px);display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px 16px;z-index:3}
+.eulst-lab .count{justify-self:end}
+.eulst-lab .cats{display:flex;justify-content:center;flex-wrap:wrap;gap:6px}
+.eulst-lab .cats button{all:unset;cursor:pointer;display:inline-flex;align-items:baseline;gap:.5em;font-family:var(--font-label);font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);padding:5px 9px;border:2px solid var(--line);background:var(--ink-2);box-shadow:3px 3px 0 #000}
+.eulst-lab .cats button:hover{color:var(--bone);border-color:var(--dim)}
+.eulst-lab .cats button:active{transform:translate(2px,2px);box-shadow:1px 1px 0 #000}
+.eulst-lab .cats button[aria-current="true"]{color:var(--ink);background:var(--item);border-color:var(--item)}
+.eulst-lab .cats button:focus-visible{outline:2px solid var(--bone);outline-offset:2px}
+.eulst-lab .cats .c{opacity:.55;font-variant-numeric:tabular-nums}
 .eulst-lab .mark{font-family:var(--font-body);font-weight:700;font-size:1.05rem;color:var(--bone);text-decoration:none}
 .eulst-lab .mark span{color:var(--brand)}
 .eulst-lab .count{font-family:var(--font-label);font-size:.72rem;letter-spacing:.12em;color:var(--dim);text-transform:uppercase;font-variant-numeric:tabular-nums}
@@ -56,6 +64,8 @@ html:has(.eulst-lab),html:has(.eulst-lab) body{height:100%;overflow:hidden;overs
 .eulst-lab .index a[aria-current="true"]{color:var(--bone)}
 .eulst-lab .index a[aria-current="true"] .n{color:var(--ink);background:var(--item)}
 .eulst-lab .index .n{padding:1px 4px}
+.eulst-lab .index .sec{font-family:var(--font-label);font-size:.56rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);opacity:.55;padding:10px 6px 2px}
+.eulst-lab .index .sec:first-child{padding-top:0}
 .eulst-lab .index a:focus-visible{outline:2px solid var(--item)}
 
 .eulst-lab .gauge{position:absolute;right:22px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;gap:10px;pointer-events:none}
@@ -72,7 +82,11 @@ html:has(.eulst-lab),html:has(.eulst-lab) body{height:100%;overflow:hidden;overs
 .eulst-lab .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
 @media (max-width:760px){
-  .eulst-lab .slot{padding-inline:40px;row-gap:8px}
+  .eulst-lab .top{grid-template-columns:1fr auto}
+  .eulst-lab .cats{grid-column:1 / -1;grid-row:2}
+  .eulst-lab .cats button{font-size:.6rem;padding:5px 7px}
+  .eulst-lab .index .sec{font-size:0;padding:0;height:10px}
+  .eulst-lab .slot{padding-inline:40px;row-gap:8px;padding-block-start:calc(env(safe-area-inset-top,0px) + 108px)}
   .eulst-lab .index{left:8px;gap:2px}
   .eulst-lab .index .nm{display:none}
   .eulst-lab .index a{padding:4px 2px}

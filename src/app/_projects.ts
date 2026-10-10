@@ -16,6 +16,8 @@ export type Project = {
   // Face du cube en pixel art (générée par l'éditeur de projet) : palette + lignes d'index (0-9, a-z).
   // 8, 16 ou 32 lignes. Sans face, le cube garde son dessin par défaut.
   face?: { palette: string[]; rows: string[] };
+  // Rayon de la vitrine : outils, expériences ou jeux (ordre d'affichage sur l'accueil).
+  section?: "outil" | "experience" | "jeu";
   visible: boolean;
 };
 
@@ -33,6 +35,7 @@ export const projects: Project[] = [
     image: "/projects/hofmann-trace.svg",
     color: "#4d5eff",
     traits: ["Vectoriel", "Export SVG · EPS", "Mobile"],
+    section: "outil",
     visible: true,
   },
   {
@@ -47,6 +50,7 @@ export const projects: Project[] = [
     caption: "Chaque photo trouve sa place.",
     color: "#ff8a3d",
     traits: ["100 % local", "Calques"],
+    section: "outil",
     visible: true,
   },
   {
@@ -61,6 +65,7 @@ export const projects: Project[] = [
     caption: "La couleur est la touche. L’œil est le marteau.",
     color: "#ff4f9a",
     traits: ["Suivi du regard", "Caméra", "Son"],
+    section: "experience",
     visible: true,
   },
   {
@@ -95,6 +100,42 @@ export const projects: Project[] = [
         "1111110111771011",
       ],
     },
+    section: "jeu",
+    visible: true,
+  },
+  {
+    id: "bille-foraine",
+    name: "Bille Foraine",
+    category: "Jeu · Gyroscope",
+    description: "Incline ton téléphone pour guider la bille jusqu’au trou. Ramasse les pièces, achète des billes à pouvoir, affronte les boss.",
+    href: "/bille/",
+    access: "public",
+    artwork: "generic",
+    caption: "Vise le trou.",
+    color: "#e2483d",
+    traits: ["Gyroscope", "Billes à pouvoir", "Boss"],
+    face: {
+      palette: ["#0f1719", "#e2483d", "#9b2a25", "#f3e9d2", "#f2b544", "#1b2629", "#243337", "#070b0c", "#a8721f", "#ff8a7a"],
+      rows: [
+        "1111111111111111",
+        "1555565555565551",
+        "1550055555644551",
+        "1507705556434451",
+        "1507705565448461",
+        "1650055655588651",
+        "1555511115556551",
+        "1555193111565551",
+        "1555131111055551",
+        "1556111112000051",
+        "1565111122077001",
+        "1655512220077701",
+        "1555550000777701",
+        "1555565550077001",
+        "1555655555000051",
+        "1111111111111111",
+      ],
+    },
+    section: "jeu",
     visible: true,
   },
   {
@@ -106,6 +147,7 @@ export const projects: Project[] = [
     access: "private",
     artwork: "broll",
     image: "/projects/broll-finder.svg",
+    section: "outil",
     visible: false,
   },
 ];
