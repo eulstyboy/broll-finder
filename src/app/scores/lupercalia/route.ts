@@ -18,8 +18,16 @@ const MAX_LOST = 20;
 type Entry = { name: string; score: number; crepes: number; date: string };
 
 function redisEnv() {
-  const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+  let url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+  let token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+  // L'intégration peut ajouter un préfixe personnalisé (ex. MONPREFIXE_KV_REST_API_URL) : on le retrouve.
+  if (!url || !token) {
+    const key = Object.keys(process.env).find((k) => /REST_API_URL$|REDIS_REST_URL$/.test(k) && process.env[k]);
+    if (key) {
+      url = process.env[key];
+      token = process.env[key.replace(/URL$/, "TOKEN")];
+    }
+  }
   return url && token ? { url: url.replace(/\/$/, ""), token } : null;
 }
 
@@ -58,12 +66,13 @@ const json = (body: unknown, status = 200) =>
   Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
 
 export async function GET() {
-  if (!redisEnv()) return json({ ok: false, reason: "storage" }, 503);
+  // Toujours 200 : l'état se lit directement dans le navigateur.
+  if (!redisEnv()) return json({ ok: false, reason: "not-configured" });
   try {
     const [top] = await pipeline([["ZREVRANGE", BOARD, 0, TOP - 1, "WITHSCORES"]]);
     return json({ ok: true, top: parseTop(top) });
   } catch {
-    return json({ ok: false, reason: "storage" }, 502);
+    return json({ ok: false, reason: "storage-error" });
   }
 }
 
