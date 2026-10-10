@@ -335,10 +335,10 @@ table.lb tr.me td{background:rgba(240,176,70,.12)}
           <button id="sOff" aria-pressed="false">Non</button>
         </div>
       </div>
-      <div class="row"><span class="k">Voix du chef</span>
-        <div class="seg" role="group" aria-label="Voix du chef">
-          <button id="vOn" aria-pressed="true">Oui</button>
-          <button id="vOff" aria-pressed="false">Non</button>
+      <div class="row"><span class="k">Musique</span>
+        <div class="seg" role="group" aria-label="Musique">
+          <button id="muOn" aria-pressed="true">Oui</button>
+          <button id="muOff" aria-pressed="false">Non</button>
         </div>
       </div>
       <p class="note" id="modeNote"></p>
@@ -682,7 +682,7 @@ function paintTextures(){
 
 /* =================== state =================== */
 const S={
-  mode:store.get('lp.mode',null),power:store.get('lp.power',1),sound:store.get('lp.sound',true),voice:store.get('lp.voice',true),
+  mode:store.get('lp.mode',null),power:store.get('lp.power',1),sound:store.get('lp.sound',true),music:store.get('lp.music',true),
   running:false,timeLeft:GAME_TIME,score:0,shown:0,crepes:0,saltos:0,lost:0,bestNote:-1,notes:[],
   phase:'menu',phaseT:0,t:0,
   knob:null,rub:null,
@@ -905,14 +905,55 @@ const AU={ctx:null,noiseBuf:null,szGain:null,
     s.connect(fl);fl.connect(g);g.connect(c.destination);s.start(t,Math.random());s.stop(t+dur+0.05);}
 };
 const buzz=ms=>{try{navigator.vibrate&&navigator.vibrate(ms);}catch(e){}};
-let frVoice=null;
-function loadVoice(){try{const vs=speechSynthesis.getVoices();frVoice=vs.find(v=>/^fr(-|_)FR/i.test(v.lang))||vs.find(v=>/^fr/i.test(v.lang))||null;}catch(e){}}
-try{loadVoice();speechSynthesis.onvoiceschanged=loadVoice;}catch(e){}
-function say(text,lvl){
-  if(!S.voice||!S.sound)return;
-  try{const u=new SpeechSynthesisUtterance(text.replace(/[!…,]/g,' ').toLowerCase());
-    u.lang='fr-FR';if(frVoice)u.voice=frVoice;u.rate=1.15+lvl*0.12;u.pitch=0.75+lvl*0.18;u.volume=1;
-    speechSynthesis.cancel();speechSynthesis.speak(u);}catch(e){}
+/* ---- ambient music: a little chiptune musette waltz (C major, 3/4), scheduled ahead on the audio clock ---- */
+const mtf=m=>440*Math.pow(2,(m-69)/12);
+const PROG=[[48,[60,64,67]],[43,[59,62,65]],[48,[60,64,67]],[41,[60,65,69]],[48,[60,64,67]],[43,[59,62,65]],[48,[60,64,67]],[48,[60,64,67]]];
+const MEL=[76,0,79,0,76,74, 74,0,77,0,74,71, 72,74,76,77,79,0, 81,0,77,0,72,0, 76,0,79,0,84,0, 83,81,79,77,74,0, 72,0,76,0,79,0, 72,0,0,0,0,0];
+const MLEN=MEL.map((m,i)=>{if(!m)return 0;let n=1;while(n<6&&!MEL[(i+n)%48])n++;return n;});
+const MU={bus:null,timer:null,next:0,step:0,playing:false,
+  init(){if(!AU.ctx||this.bus)return;const c=AU.ctx;this.bus=c.createGain();this.bus.gain.value=0;
+    const lp=c.createBiquadFilter();lp.type='lowpass';lp.frequency.value=3000;this.bus.connect(lp);lp.connect(c.destination);},
+  start(){if(!AU.ctx||!S.music||!S.sound)return;this.init();if(this.playing)return;this.playing=true;
+    const t=AU.ctx.currentTime;this.next=t+0.12;this.step=0;this.bus.gain.cancelScheduledValues(t);this.bus.gain.setTargetAtTime(0.55,t,0.4);
+    this.timer=setInterval(()=>this.tick(),40);},
+  stop(){if(!this.playing)return;this.playing=false;clearInterval(this.timer);if(this.bus){const t=AU.ctx.currentTime;this.bus.gain.cancelScheduledValues(t);this.bus.gain.setTargetAtTime(0,t,0.2);}},
+  duck(){if(!this.playing)return;const t=AU.ctx.currentTime,g=this.bus.gain;g.cancelScheduledValues(t);g.setTargetAtTime(0.16,t,0.03);g.setTargetAtTime(0.55,t+0.6,0.3);},
+  tick(){const c=AU.ctx,bpm=112*(S.running&&S.timeLeft<=10?1.25:1),e=60/bpm/2;
+    while(this.next<c.currentTime+0.25){this.play(this.step,this.next,e);this.next+=e;this.step=(this.step+1)%48;}},
+  osc(type,f,t,d,v,det=0){const c=AU.ctx,o=c.createOscillator(),gn=c.createGain();o.type=type;o.frequency.setValueAtTime(f,t);o.detune.value=det;
+    gn.gain.setValueAtTime(0.0001,t);gn.gain.linearRampToValueAtTime(v,t+0.012);gn.gain.setValueAtTime(v,t+d*0.6);gn.gain.exponentialRampToValueAtTime(0.0001,t+d);
+    o.connect(gn);gn.connect(this.bus);o.start(t);o.stop(t+d+0.02);},
+  play(st,t,e){
+    const bar=(st/6)|0,pos=st%6,[root,tri]=PROG[bar];
+    if(pos===0)this.osc('triangle',mtf(root),t,e*1.8,0.16);
+    if(pos===2||pos===4){for(const n of tri)this.osc('square',mtf(n),t,e*0.7,0.018);
+      const c=AU.ctx,s=c.createBufferSource();s.buffer=AU.noiseBuf;const hp=c.createBiquadFilter();hp.type='highpass';hp.frequency.value=7000;
+      const gn=c.createGain();gn.gain.setValueAtTime(0.03,t);gn.gain.exponentialRampToValueAtTime(0.0001,t+0.05);s.connect(hp);hp.connect(gn);gn.connect(this.bus);s.start(t,Math.random());s.stop(t+0.06);}
+    const m=MEL[st];
+    // accordion-ish lead: two square voices a few cents apart beat against each other
+    if(m){const d=e*MLEN[st]*0.92;this.osc('square',mtf(m),t,d,0.026);this.osc('square',mtf(m),t,d,0.02,9);}
+  }
+};
+
+/* ---- each order has its own sound ---- */
+function stinger(key,lvl){
+  const v=0.05+lvl*0.015,up=1+0.12*(lvl-1);
+  MU.duck();
+  switch(key){
+    case 'butter':AU.noise(0.4,3000,7500,0.1+lvl*0.04,'highpass');AU.tone(659*up,0.09,'square',v);AU.tone(784*up,0.16,'square',v,0,0.09);break;
+    case 'rub':for(let i=0;i<3;i++)AU.noise(0.09,1100,2700,0.12,'bandpass',i*0.11);AU.tone(880*up,0.1,'triangle',v,0,0.34);break;
+    case 'batter':AU.tone(440*up,0.13,'sine',0.16,0.45);AU.tone(370*up,0.15,'sine',0.16,0.45,0.14);AU.tone(784*up,0.14,'square',v,0,0.3);break;
+    case 'spread':AU.noise(0.45,400,2600,0.13,'bandpass');AU.noise(0.4,2600,500,0.09,'bandpass',0.28);break;
+    case 'flip':AU.noise(0.3,300,3200,0.13,'bandpass');AU.tone(200*up,0.26,'sine',0.16,4);AU.tone(1319*up,0.28,'triangle',v,0,0.24);break;
+    case 'catch':[988,1319,988,1319].forEach((f,i)=>AU.tone(f,0.07,'square',v,0,i*0.08));break;
+    case 'plate':AU.tone(2093*up,0.45,'triangle',0.09);AU.tone(3136*up,0.3,'triangle',0.06,0,0.03);AU.tone(2637*up,0.4,'triangle',0.07,0,0.16);break;
+    case 'burn1':case 'burn2':for(let i=0;i<3;i++){AU.tone(640,0.12,'sawtooth',0.06,1.4,i*0.26);AU.tone(900,0.12,'sawtooth',0.06,0.72,i*0.26+0.13);}AU.noise(0.9,1500,4500,0.12,'highpass');break;
+    case 'hurry':for(let i=0;i<7;i++)AU.tone(1600+i*60,0.03,'square',0.05,0,i*0.1*(1-i*0.06));break;
+    case 'stop':AU.tone(196,1.3,'triangle',0.13,0.98);AU.tone(392,1,'sine',0.06);AU.tone(294,1.1,'sine',0.05);break;
+    default:AU.tone(240,0.09,'square',v,0.7);AU.tone(180,0.14,'square',v,0.6,0.08);
+  }
+  // the chef's whistle when the order is repeated
+  if(lvl>=2){AU.tone(2500,0.09,'sine',0.05*lvl,1.04,0.02);AU.tone(2500,0.16,'sine',0.05*lvl,0.97,0.15);}
 }
 
 /* =================== sensors =================== */
@@ -1049,7 +1090,7 @@ function burstSVG(){
   for(let k=0;k<n*2;k++){const a=k/(n*2)*Math.PI*2,r=k%2?rnd(0.7,0.8):rnd(0.94,1);pts+=`${(100+Math.cos(a)*96*r).toFixed(1)},${(50+Math.sin(a)*46*r).toFixed(1)} `;}
   return `<svg class="burst" viewBox="0 0 200 100" preserveAspectRatio="none" aria-hidden="true"><polygon points="${pts}"/></svg>`;
 }
-function shout(text,lvl){
+function shout(text,lvl,key){
   const host=$('shout');
   if(shoutEl){const old=shoutEl;old.classList.add('out');setTimeout(()=>old.remove(),240);}
   const el=document.createElement('div');el.className='sh l'+lvl;
@@ -1061,20 +1102,17 @@ function shout(text,lvl){
   fit();try{document.fonts&&document.fonts.ready.then(fit);}catch(e){}
   clearTimeout(shoutTimer);
   shoutTimer=setTimeout(()=>{if(shoutEl===el){el.classList.add('out');setTimeout(()=>el.remove(),240);shoutEl=null;}},lvl>=3?1500:1250);
-  // a chef's bark: two quick square blasts and a breath of noise
-  AU.tone(lvl>=3?330:240,0.09,'square',0.05+lvl*0.015,0.7);AU.tone(lvl>=3?250:180,0.14,'square',0.05+lvl*0.015,0.6,0.08);
-  AU.noise(0.18,900,300,0.08+lvl*0.03,'bandpass');
-  say(text,lvl);
+  stinger(key,lvl);
   shake(lvl>=2?2:1);
   if(lvl>=3)flashRed();
 }
 function demand(key){
   if(!key){S.shoutKey=null;return;}
-  if(key!==S.shoutKey){S.shoutKey=key;S.shoutT=0;S.shoutLvl=LVL[key]||1;shout(ORDERS[key][0],S.shoutLvl);return;}
+  if(key!==S.shoutKey){S.shoutKey=key;S.shoutT=0;S.shoutLvl=LVL[key]||1;shout(ORDERS[key][0],S.shoutLvl,key);return;}
   const list=ORDERS[key];
-  if(list.length>1&&S.shoutT>3.2){S.shoutT=0;S.shoutLvl=Math.min(3,S.shoutLvl+1);shout(list[Math.min(list.length-1,S.shoutLvl-1)],S.shoutLvl);}
+  if(list.length>1&&S.shoutT>3.2){S.shoutT=0;S.shoutLvl=Math.min(3,S.shoutLvl+1);shout(list[Math.min(list.length-1,S.shoutLvl-1)],S.shoutLvl,key);}
 }
-function oneShot(key){S.shoutKey='_'+key;S.shoutT=0;shout(ORDERS[key][0],LVL[key]||1);}
+function oneShot(key){S.shoutKey='_'+key;S.shoutT=0;shout(ORDERS[key][0],LVL[key]||1,key);}
 
 /* =================== butter knob =================== */
 function dropKnob(){
@@ -1210,10 +1248,15 @@ function settle(){
 function fall(){
   S.flight=null;S.lost++;S.lostT=0;CL.st.mu=0;
   matA.transparent=matB.transparent=true;
-  setPhase('lost');AU.noise(0.4,400,120,0.25,'lowpass');AU.tone(160,0.4,'sawtooth',0.05,0.4);buzz([40,40,80]);shake(2);flashRed();
-  S.sautPts=-2;award(-2,'SAUT · PAR TERRE');
-  verdict({note:0,face:'mad',comment:pick(['Le carrelage te remercie.','Règle des 5 secondes ? Non.','Le chien, lui, est ravi.','Elle voulait voir le monde.']),louche:S.louchePts,saut:-2,dropped:true});
-  butterUse();
+  setPhase('lost');
+  // splat: a wet slap, a falling slide whistle and a sad trombone
+  AU.noise(0.4,400,120,0.28,'lowpass');AU.tone(900,0.5,'sine',0.07,0.3);
+  [392,370,349,330].forEach((f,i)=>AU.tone(f,i===3?0.6:0.22,'sawtooth',0.05,i===3?0.94:1,0.45+i*0.24));
+  buzz([40,40,80]);shake(2);flashRed();
+  award(-5,'PAR TERRE');
+  verdict({note:0,face:'mad',comment:pick(['Le carrelage te remercie.','Règle des 5 secondes ? Non.','Le chien, lui, est ravi.','Elle voulait voir le monde.']),louche:S.louchePts,saut:S.sautPts,dropped:true});
+  // the pan has to be buttered again
+  butter.fill(0);butterCoverage();
 }
 function plate(){
   if(S.phase!=='cook2')return;
@@ -1307,8 +1350,10 @@ async function runVerdict(){
     const pts=$('vPts');pts.textContent='';
     const chip=(t,cls)=>{const s=document.createElement('span');s.className='pt '+cls;s.textContent=t;pts.append(s);};
     const lp=v.louche==null?0:v.louche,sp=v.saut==null?0:v.saut;
-    chip('Louche '+sgn(lp),lp>0?'pos':lp<0?'neg':'');chip('Saut '+sgn(sp),sp>0?'pos':sp<0?'neg':'');
-    chip(v.dropped?'Note 0':'Note '+v.note,'');chip('= '+sgn(lp+sp+v.note),'tot');
+    chip('Louche '+sgn(lp),lp>0?'pos':lp<0?'neg':'');
+    if(v.saut!=null||!v.dropped)chip('Saut '+sgn(sp),sp>0?'pos':sp<0?'neg':'');
+    if(v.dropped){chip('Par terre −5','neg');chip('= '+sgn(lp+sp-5),'tot');}
+    else{chip('Note '+v.note,'');chip('= '+sgn(lp+sp+v.note),'tot');}
     // count the note up, tick by tick
     const span=nEl.firstChild;
     for(let k=0;k<=v.note;k++){span.textContent=k;if(k)AU.tone(300+k*60,0.05,'square',0.035);await sleep(reduceMotion?20:55);}
@@ -1408,7 +1453,7 @@ function updateHint(){
     case 'flight':t=g?'<b>Penche</b> pour mettre la poêle sous l\'ombre':'<b>Glisse</b> la poêle sous l\'ombre';break;
     case 'cook2':t='Face 2 dorée ? <b>ASSIETTE</b>'+(g?' ou penche à droite':'');break;
     case 'plating':t='Et hop, dans l\'assiette';break;
-    case 'lost':t='Par terre… on en refait une';break;
+    case 'lost':t='Par terre ! Rebeurre la poêle';break;
     case 'over':t='Fin du service';break;
     default:t='&nbsp;';
   }
@@ -1542,6 +1587,10 @@ function update(dt){
         S.panAnim.vy-=1.6;const p=proj(c.x,0.02,c.z);crumbs(p.x,p.y);}
       if((fl.landed>=0&&(fl.t-fl.landed>0.55||(fl.t-fl.landed>0.3&&CL.speed()<0.2)))||fl.t>4.2)settle();
     }
+  }
+  if((S.phase==='cook2'||(S.phase==='flight'&&S.flight&&S.flight.landed>=0))&&CL.st.dynamic){
+    S._fallT=(S._fallT||0)+dt;
+    if(S._fallT>0.12){S._fallT=0;const fa=CL.assess(S.pan.x,S.pan.z);if(fa.off>0.25||fa.hang>0.5||fa.cy<-0.2)fall();}
   }
   if(S.phase==='cook2'&&S.mode==='gyro'&&hasSensor()){
     if(S.tilt.x>0.75){S.plateHold+=dt;if(S.plateHold>0.3){S.plateHold=0;plate();}}else S.plateHold=0;
@@ -1686,11 +1735,12 @@ async function startGame(){
   $('score').textContent='0';$('count').textContent='0';renderPlateCard();
   $('menu').hidden=true;$('over').hidden=true;
   setPhase('empty');
+  MU.start();
 }
 function endGame(){
   S.running=false;S.timeLeft=0;$('time').textContent='0:00';
   S.hasCrepe=false;S.flight=null;S.knob=null;holder.visible=false;
-  setPhase('over');AU.sizzle(0);oneShot('stop');
+  setPhase('over');AU.sizzle(0);MU.stop();oneShot('stop');
   [784,659,523,392].forEach((fq,i)=>AU.tone(fq,0.22,'square',0.05,0,0.3+i*0.14));
   try{wake&&wake.release();}catch(e){}
   setTimeout(()=>{if(!vBusy)showOver();},1500);
@@ -1741,7 +1791,7 @@ function renderMode(){
     ['Beurre !','pose une noix et frotte-la au doigt jusqu\'à couvrir 60 % de la poêle. Le beurre s\'use : à refaire toutes les deux crêpes environ.'],
     ['Pâte !','maintiens la louche et relâche dans la zone verte.'],
     ['Étale !',(g?'penche le téléphone en rond':'glisse en rond')+' avant que la pâte ne prenne. Pas de trous.'],
-    ['Fais sauter !',(g?'un coup sec vers le haut':'glisse vers le haut')+' quand les bords dorent. Retournée ou salto, sinon elle se plie. Rattrape-la sous l\'ombre.'],
+    ['Fais sauter !',(g?'un coup sec vers le haut':'glisse vers le haut')+' quand les bords dorent. Retournée ou salto, sinon elle se plie. Rattrape-la sous l\'ombre : par terre, c\'est −5 et tout le beurre à refaire.'],
     ['Assiette !','quand la face 2 est dorée. Le chef note ta crêpe sur 10.']
   ];
   const ol=$('howto');ol.textContent='';
@@ -1757,12 +1807,12 @@ document.querySelectorAll('#powerRow button').forEach(b=>{
 });
 function renderToggles(){
   $('sOn').setAttribute('aria-pressed',String(S.sound));$('sOff').setAttribute('aria-pressed',String(!S.sound));
-  $('vOn').setAttribute('aria-pressed',String(S.voice));$('vOff').setAttribute('aria-pressed',String(!S.voice));
+  $('muOn').setAttribute('aria-pressed',String(S.music));$('muOff').setAttribute('aria-pressed',String(!S.music));
 }
 $('sOn').addEventListener('click',()=>{S.sound=true;store.set('lp.sound',true);renderToggles();});
-$('sOff').addEventListener('click',()=>{S.sound=false;store.set('lp.sound',false);renderToggles();AU.sizzle(0);});
-$('vOn').addEventListener('click',()=>{S.voice=true;store.set('lp.voice',true);renderToggles();AU.init();say('Beurre !',1);});
-$('vOff').addEventListener('click',()=>{S.voice=false;store.set('lp.voice',false);renderToggles();try{speechSynthesis.cancel();}catch(e){}});
+$('sOff').addEventListener('click',()=>{S.sound=false;store.set('lp.sound',false);renderToggles();AU.sizzle(0);MU.stop();});
+$('muOn').addEventListener('click',()=>{S.music=true;store.set('lp.music',true);renderToggles();AU.init();AU.resume();if(S.running)MU.start();});
+$('muOff').addEventListener('click',()=>{S.music=false;store.set('lp.music',false);renderToggles();MU.stop();});
 $('btnPlay').addEventListener('click',startGame);
 
 /* when the browser sends no motion at all (Brave on Android blocks it on purpose) */
@@ -1799,7 +1849,7 @@ function demoCrepe(){
 
 /* =================== boot =================== */
 window.addEventListener('resize',resize);
-document.addEventListener('visibilitychange',()=>{if(document.hidden)AU.sizzle(0);});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){AU.sizzle(0);MU.stop();}else if(S.running)MU.start();});
 resize();buildGauge();renderMode();renderToggles();renderLb($('lbMenu'),null);renderPlateCard();
 $('pZone').style.left=(0.9/1.6*100)+'%';$('pZone').style.width=((1.2-0.9)/1.6*100)+'%';
 demoCrepe();updateButtons();butterCoverage();
