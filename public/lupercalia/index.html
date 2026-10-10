@@ -189,6 +189,9 @@ body{background:var(--ink);color:var(--cream);font-family:var(--f-body);font-siz
 .fig-tap .fg,.fig-hold .fg{left:auto;right:4px;top:auto;bottom:4px}
 .fig-tap .fg{animation:press .9s ease-in-out infinite}
 .fig-hold .fg{animation:press 1.6s ease-in-out infinite}
+/* jolt: a small shake */
+.fig-jolt .ph{animation:joltA .45s steps(2) infinite}
+@keyframes joltA{50%{transform:translate(4px,-3px) rotate(4deg)}}
 @keyframes press{0%,100%{transform:scale(1)}25%,75%{transform:scale(.78)}}
 
 /* Controls */
@@ -962,33 +965,49 @@ const AU={ctx:null,noiseBuf:null,szGain:null,
     s.connect(fl);fl.connect(g);g.connect(c.destination);s.start(t,Math.random());s.stop(t+dur+0.05);}
 };
 const buzz=ms=>{try{navigator.vibrate&&navigator.vibrate(ms);}catch(e){}};
-/* ---- ambient music: a little chiptune musette waltz (C major, 3/4), scheduled ahead on the audio clock ---- */
+/* ---- music: an upbeat chiptune loop (C–G–Am–F, 4/4, 140 bpm) with drums, bouncing bass, arpeggio and lead ---- */
 const mtf=m=>440*Math.pow(2,(m-69)/12);
-const PROG=[[48,[60,64,67]],[43,[59,62,65]],[48,[60,64,67]],[41,[60,65,69]],[48,[60,64,67]],[43,[59,62,65]],[48,[60,64,67]],[48,[60,64,67]]];
-const MEL=[76,0,79,0,76,74, 74,0,77,0,74,71, 72,74,76,77,79,0, 81,0,77,0,72,0, 76,0,79,0,84,0, 83,81,79,77,74,0, 72,0,76,0,79,0, 72,0,0,0,0,0];
-const MLEN=MEL.map((m,i)=>{if(!m)return 0;let n=1;while(n<6&&!MEL[(i+n)%48])n++;return n;});
+const CH=[{r:36,t:[60,64,67]},{r:43,t:[59,62,67]},{r:45,t:[57,60,64]},{r:41,t:[57,60,65]}];
+// lead, one entry per 16th; 0 = hold the previous note
+const LEAD=[
+  72,0,72,76, 0,79,0,76, 77,0,76,0, 74,0,72,0,   71,0,74,0, 79,0,77,76, 74,0,0,0, 71,0,74,0,
+  72,0,72,76, 0,81,0,79, 76,0,77,0, 79,0,81,0,   84,0,83,81, 0,79,0,77, 76,0,74,0, 72,0,0,0,
+  79,0,79,0, 84,0,79,0, 76,0,79,0, 84,0,86,0,    86,0,84,83, 0,79,0,83, 86,0,0,0, 83,0,79,0,
+  81,0,84,0, 81,0,79,0, 76,0,79,0, 81,0,84,0,    86,0,84,0, 81,0,77,0, 79,0,0,76, 72,0,0,0];
+const LLEN=LEAD.map((m,i)=>{if(!m)return 0;let n=1;while(n<8&&!LEAD[(i+n)%LEAD.length])n++;return n;});
 const MU={bus:null,timer:null,next:0,step:0,playing:false,
   init(){if(!AU.ctx||this.bus)return;const c=AU.ctx;this.bus=c.createGain();this.bus.gain.value=0;
-    const lp=c.createBiquadFilter();lp.type='lowpass';lp.frequency.value=3000;this.bus.connect(lp);lp.connect(c.destination);},
+    const lp=c.createBiquadFilter();lp.type='lowpass';lp.frequency.value=5200;this.bus.connect(lp);lp.connect(c.destination);},
   start(){if(!AU.ctx||!S.music||!S.sound)return;this.init();if(this.playing)return;this.playing=true;
-    const t=AU.ctx.currentTime;this.next=t+0.12;this.step=0;this.bus.gain.cancelScheduledValues(t);this.bus.gain.setTargetAtTime(0.55,t,0.4);
-    this.timer=setInterval(()=>this.tick(),40);},
+    const t=AU.ctx.currentTime;this.next=t+0.12;this.step=0;this.bus.gain.cancelScheduledValues(t);this.bus.gain.setTargetAtTime(0.5,t,0.3);
+    this.timer=setInterval(()=>this.tick(),30);},
   stop(){if(!this.playing)return;this.playing=false;clearInterval(this.timer);if(this.bus){const t=AU.ctx.currentTime;this.bus.gain.cancelScheduledValues(t);this.bus.gain.setTargetAtTime(0,t,0.2);}},
-  duck(){if(!this.playing)return;const t=AU.ctx.currentTime,g=this.bus.gain;g.cancelScheduledValues(t);g.setTargetAtTime(0.16,t,0.03);g.setTargetAtTime(0.55,t+0.6,0.3);},
-  tick(){const c=AU.ctx,bpm=112*(S.running&&S.timeLeft<=10?1.25:1),e=60/bpm/2;
-    while(this.next<c.currentTime+0.25){this.play(this.step,this.next,e);this.next+=e;this.step=(this.step+1)%48;}},
-  osc(type,f,t,d,v,det=0){const c=AU.ctx,o=c.createOscillator(),gn=c.createGain();o.type=type;o.frequency.setValueAtTime(f,t);o.detune.value=det;
-    gn.gain.setValueAtTime(0.0001,t);gn.gain.linearRampToValueAtTime(v,t+0.012);gn.gain.setValueAtTime(v,t+d*0.6);gn.gain.exponentialRampToValueAtTime(0.0001,t+d);
+  duck(){if(!this.playing)return;const t=AU.ctx.currentTime,g=this.bus.gain;g.cancelScheduledValues(t);g.setTargetAtTime(0.18,t,0.03);g.setTargetAtTime(0.5,t+0.5,0.25);},
+  tick(){const c=AU.ctx,bpm=140*(S.running&&S.timeLeft<=10?1.15:1),e=60/bpm/4;
+    while(this.next<c.currentTime+0.2){this.play(this.step,this.next,e);this.next+=e;this.step=(this.step+1)%LEAD.length;}},
+  osc(type,f,t,d,v,det=0,f2=0){const c=AU.ctx,o=c.createOscillator(),gn=c.createGain();o.type=type;o.frequency.setValueAtTime(f,t);
+    if(f2)o.frequency.exponentialRampToValueAtTime(f2,t+d*0.8);o.detune.value=det;
+    gn.gain.setValueAtTime(0.0001,t);gn.gain.linearRampToValueAtTime(v,t+0.006);gn.gain.setValueAtTime(v,t+d*0.5);gn.gain.exponentialRampToValueAtTime(0.0001,t+d);
     o.connect(gn);gn.connect(this.bus);o.start(t);o.stop(t+d+0.02);},
+  hit(t,d,v,type,f){const c=AU.ctx,s=c.createBufferSource();s.buffer=AU.noiseBuf;const fl=c.createBiquadFilter();fl.type=type;fl.frequency.value=f;fl.Q.value=0.8;
+    const gn=c.createGain();gn.gain.setValueAtTime(v,t);gn.gain.exponentialRampToValueAtTime(0.0001,t+d);s.connect(fl);fl.connect(gn);gn.connect(this.bus);s.start(t,Math.random());s.stop(t+d+0.02);},
   play(st,t,e){
-    const bar=(st/6)|0,pos=st%6,[root,tri]=PROG[bar];
-    if(pos===0)this.osc('triangle',mtf(root),t,e*1.8,0.16);
-    if(pos===2||pos===4){for(const n of tri)this.osc('square',mtf(n),t,e*0.7,0.018);
-      const c=AU.ctx,s=c.createBufferSource();s.buffer=AU.noiseBuf;const hp=c.createBiquadFilter();hp.type='highpass';hp.frequency.value=7000;
-      const gn=c.createGain();gn.gain.setValueAtTime(0.03,t);gn.gain.exponentialRampToValueAtTime(0.0001,t+0.05);s.connect(hp);hp.connect(gn);gn.connect(this.bus);s.start(t,Math.random());s.stop(t+0.06);}
-    const m=MEL[st];
-    // accordion-ish lead: two square voices a few cents apart beat against each other
-    if(m){const d=e*MLEN[st]*0.92;this.osc('square',mtf(m),t,d,0.026);this.osc('square',mtf(m),t,d,0.02,9);}
+    const pos=st%16,bar=((st/16)|0)%4,ch=CH[bar],last=st>=LEAD.length-16;
+    // drums: four-on-the-floor kick with a skip, backbeat snare, offbeat open hats
+    if(pos===0||pos===8||pos===10||(last&&pos===14))this.osc('sine',150,t,0.14,0.42,0,42);
+    if(pos===4||pos===12){this.hit(t,0.13,0.16,'bandpass',1900);this.osc('triangle',190,t,0.06,0.06);}
+    if(last&&pos>=12)this.hit(t,0.08,0.1,'bandpass',2400);
+    if(pos%2===0)this.hit(t,pos%4===2?0.07:0.025,pos%4===2?0.05:0.03,'highpass',8000);
+    // bouncing octave bass on every 8th
+    if(pos%2===0)this.osc('triangle',mtf(ch.r+(pos%4===2?12:0)),t,e*1.7,0.2);
+    if(pos%4===0)this.osc('square',mtf(ch.r+12),t,e*0.9,0.025);
+    // fast arpeggio for drive
+    this.osc('square',mtf(ch.t[pos%3]+12),t,e*0.7,0.011);
+    // offbeat chord stabs
+    if(pos===2||pos===6||pos===10||pos===14)for(const n of ch.t)this.osc('square',mtf(n),t,e*0.8,0.014);
+    // lead, two voices a few cents apart
+    const m=LEAD[st];
+    if(m){const d=e*LLEN[st]*0.9;this.osc('square',mtf(m),t,d,0.032);this.osc('square',mtf(m+12),t,d,0.008,6);}
   }
 };
 
@@ -1015,7 +1034,7 @@ function stinger(key,lvl){
 
 /* =================== sensors =================== */
 const ori={beta:0,gamma:0,seen:false},cal={b:0,g:0};
-const mot={grav:{x:0,y:0,z:0},cap:false,capT:0,peak:0,vec:{x:0,y:0,z:0},cool:0};
+const mot={grav:{x:0,y:0,z:0},cap:false,capT:0,peak:0,vec:{x:0,y:0,z:0},cool:0,joltCool:0};
 window.addEventListener('deviceorientation',e=>{if(e.beta==null||e.gamma==null)return;ori.seen=true;ori.beta=e.beta;ori.gamma=e.gamma;});
 // fallback when the browser sends motion but no orientation: tilt from the gravity vector
 const IOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
@@ -1037,6 +1056,9 @@ window.addEventListener('devicemotion',e=>{
   if(!a||a.x==null){const g=e.accelerationIncludingGravity;if(!g||g.x==null)return;
     mot.grav.x=lerp(mot.grav.x,g.x,0.1);mot.grav.y=lerp(mot.grav.y,g.y,0.1);mot.grav.z=lerp(mot.grav.z,g.z,0.1);
     a={x:g.x-mot.grav.x,y:g.y-mot.grav.y,z:g.z-mot.grav.z};}
+  // after landing: a light jolt of the phone hops the crêpe back toward the middle
+  if(S.mode==='gyro'&&canJolt()){const m=Math.hypot(a.x,a.y,a.z),now=performance.now();
+    if(m>3.5&&m<16&&now>mot.joltCool){mot.joltCool=now+300;jolt(clamp((m-3.5)/8,0,1));}return;}
   if(S.mode!=='gyro'||S.phase!=='cook1'||performance.now()<mot.cool)return;
   const m=Math.hypot(a.x,a.y,a.z);
   if(!mot.cap){if(m>12/S.power){mot.cap=true;mot.capT=performance.now();mot.peak=m;mot.vec={x:a.x,y:a.y,z:a.z};}return;}
@@ -1093,6 +1115,7 @@ function endPtr(e){
   if(gyroLive()&&S.phase!=='empty'&&S.phase!=='cook2'){if(!ptr.nagged&&S.phase!=='plating'&&S.phase!=='lost')wrongGesture();}
   else if(S.phase==='cook1'&&-dy>r.height*0.04&&dt<1100&&-dy>Math.abs(dx)*0.7)doFlip(-dy/(r.height*0.85),clamp(dx/(-dy),-1,1)*0.8,0);
   else if(S.phase==='cook2'&&dx>r.width*0.22&&Math.abs(dx)>Math.abs(dy))plate();
+  else if(canJolt()&&dt<350&&Math.hypot(dx,dy)<30){if(gyroLive()){toast('Avec le téléphone','var(--butter)','Un petit à-coup');}else jolt(0.5);}
   joy.active=false;joy.x=joy.y=0;flipPreview=-1;ptr=null;S.rub=null;
 }
 stage.addEventListener('pointerup',endPtr);stage.addEventListener('pointercancel',endPtr);
@@ -1113,6 +1136,7 @@ window.addEventListener('keydown',e=>{
   else if(e.code==='KeyB')dropKnob();
   else if(e.code==='Enter')plate();
   else if(e.code==='KeyF'&&S.phase==='cook1')charge=performance.now();
+  else if(e.code==='KeyJ'&&canJolt())jolt(0.6);
 });
 window.addEventListener('keyup',e=>{
   keys[e.code]=false;if(!S.running)return;
@@ -1140,6 +1164,7 @@ const ORDERS={
   plate:['ASSIETTE !','À L\'ASSIETTE !!','ASSIETTE, VITE !!!'],
   burn2:['ÇA BRÛLE !!!'],
   catch:['RATTRAPE !'],
+  edge:['RECENTRE !'],
   hurry:['PLUS VITE !!'],
   go:['SERVICE !'],
   stop:['TERMINÉ !']
@@ -1282,7 +1307,7 @@ function doFlip(P,driftX,driftZ){
 function settle(){
   const fl=S.flight,a=CL.assess(S.pan.x,S.pan.z);
   S.lastAssess={...a,t:fl.t,landed:fl.landed,P:fl.P};
-  if(a.off>0.3||a.hang>0.42||a.rel>0.85){fall();return;}
+  if(a.off>0.3||a.cy<-0.2||a.rel>1.05){fall();return;}
   const folded=a.minority>=0.15;
   S.flight=null;
   if(!folded&&!a.flipped){
@@ -1304,7 +1329,7 @@ function settle(){
   else if(S.flipKind==='fold')toast('Pliée…','var(--mult)');
   else if(S.flipKind==='torn')toast('Déchirée…','var(--mult)','Elle a collé');
   else if(S.catchKind==='perfect')toast('Pile !','var(--ok)');
-  else if(S.catchKind==='edge')toast('À cheval','var(--butter)');
+  else if(S.catchKind==='edge'){toast('À cheval !','var(--butter)','Petits à-coups pour la recentrer');oneShot('edge');S.joltTips=(S.joltTips||0)+1;if(S.joltTips<=3){coachNag=4;S.coachKey=null;}}
 }
 function fall(){
   S.flight=null;S.lost++;S.lostT=0;CL.st.mu=0;S.coach=false;
@@ -1520,7 +1545,9 @@ const COACH={
   side:{fig:'side',art:PHONE,t:'Penche sous l\'ombre',s:'Incline le téléphone : la poêle suit et rattrape la crêpe.'},
   drag:{fig:'drag',art:FINGER,t:'Glisse la poêle',s:'Place-la sous l\'ombre au doigt.'},
   right:{fig:'right',art:PHONE,t:'Penche à droite',s:'Face 2 dorée : la crêpe file dans l\'assiette. Ou touche ASSIETTE.'},
-  tapPlate:{fig:'tap',art:BTN('ASSIETTE')+FINGER,t:'Touche ASSIETTE',s:'Quand la face 2 est dorée.'}
+  tapPlate:{fig:'tap',art:BTN('ASSIETTE')+FINGER,t:'Touche ASSIETTE',s:'Quand la face 2 est dorée.'},
+  jolt:{fig:'jolt',art:PHONE,t:'Petits à-coups',s:'Secoue légèrement le téléphone : la crêpe sautille vers le centre.'},
+  joltTap:{fig:'tap',art:PAN+FINGER,t:'Tapote la poêle',s:'Chaque petite tape fait sautiller la crêpe vers le centre.'}
 };
 function coachKeyFor(){
   const g=gyroLive();
@@ -1530,7 +1557,7 @@ function coachKeyFor(){
     case 'spread':return g?'tilt':'circle';
     case 'cook1':return g?'flick':'swipe';
     case 'flight':return g?'side':'drag';
-    case 'cook2':return g?'right':'tapPlate';
+    case 'cook2':return S.catchKind==='edge'?(g?'jolt':'joltTap'):(g?'right':'tapPlate');
   }
   return null;
 }
@@ -1555,6 +1582,19 @@ function wrongGesture(){
   AU.tone(330,0.08,'square',0.05);AU.tone(247,0.12,'square',0.05,0,0.08);
 }
 
+function canJolt(){return CL.st.dynamic&&(S.phase==='cook2'||(S.phase==='flight'&&S.flight&&S.flight.landed>=0));}
+function jolt(str){
+  if(!canJolt())return;
+  const c=CL.centroid();let dx=S.pan.x-c.x,dz=S.pan.z-c.z;const d=Math.hypot(dx,dz);
+  if(d>0.02){dx/=d;dz/=d;}else{dx=dz=0;}
+  const hv=(1.1+1.5*str)*Math.min(1,d/0.35),vy=1.5+1.1*str,k=1/(60*CL.PH.SUB);
+  CL.contact.fill(0);
+  for(let i=0;i<CL.n;i++){CL.prev[i*3]-=dx*hv*k;CL.prev[i*3+1]-=vy*k;CL.prev[i*3+2]-=dz*hv*k;}
+  S.panAnim.vy+=1+str;S.panAnim.vrx+=dz*2.5;S.panAnim.vrz-=dx*2.5;
+  AU.noise(0.07,700,300,0.14,'lowpass');AU.tone(140,0.06,'sine',0.1,0.6);
+  if(S.coachKey==='jolt'||S.coachKey==='joltTap')coachNag=Math.min(coachNag,1.2);
+}
+
 function updateHint(){
   const g=S.mode==='gyro';let t='';
   switch(S.phase){
@@ -1565,7 +1605,7 @@ function updateHint(){
     case 'spread':t=g?'<b>Penche en rond</b> pour couvrir toute la poêle':'<b>Glisse en rond</b> pour couvrir toute la poêle';break;
     case 'cook1':t='Bords dorés ? '+(g?'<b>Coup sec vers le haut</b>':'<b>Glisse vers le haut</b>')+' — vise le vert';break;
     case 'flight':t=g?'<b>Penche</b> pour mettre la poêle sous l\'ombre':'<b>Glisse</b> la poêle sous l\'ombre';break;
-    case 'cook2':t='Face 2 dorée ? <b>ASSIETTE</b>'+(g?' ou penche à droite':'');break;
+    case 'cook2':t=S.catchKind==='edge'?'À cheval : <b>'+(g?'petits à-coups':'tapote la poêle')+'</b> pour la recentrer':'Face 2 dorée ? <b>ASSIETTE</b>'+(g?' ou penche à droite':'');break;
     case 'plating':t='Et hop, dans l\'assiette';break;
     case 'lost':t='Par terre ! Rebeurre la poêle';break;
     case 'over':t='Fin du service';break;
@@ -1704,7 +1744,8 @@ function update(dt){
   }
   if((S.phase==='cook2'||(S.phase==='flight'&&S.flight&&S.flight.landed>=0))&&CL.st.dynamic){
     S._fallT=(S._fallT||0)+dt;
-    if(S._fallT>0.12){S._fallT=0;const fa=CL.assess(S.pan.x,S.pan.z);if(fa.off>0.25||fa.hang>0.5||fa.cy<-0.2)fall();}
+    if(S._fallT>0.12){S._fallT=0;const fa=CL.assess(S.pan.x,S.pan.z);if(fa.off>0.35||fa.hang>0.8||fa.cy<-0.25)fall();
+      else if(S.phase==='cook2'&&S.catchKind==='edge'&&fa.hang<0.03&&fa.rel<0.4){S.catchKind='ok';updateHint();award(1,'SAUVÉE');toast('Sauvée !','var(--ok)');AU.tone(784,0.08,'square',0.05);AU.tone(1175,0.14,'square',0.05,0,0.08);}}
   }
   if(S.phase==='cook2'&&S.mode==='gyro'&&hasSensor()){
     if(S.tilt.x>0.75){S.plateHold+=dt;if(S.plateHold>0.3){S.plateHold=0;plate();}}else S.plateHold=0;
@@ -1931,7 +1972,7 @@ function renderMode(){
     ['Beurre !','pose une noix et frotte-la au doigt jusqu\'à couvrir 60 % de la poêle. Le beurre s\'use : à refaire toutes les deux crêpes environ.'],
     ['Pâte !','maintiens la louche et relâche dans la zone verte.'],
     ['Étale !',(g?'penche le téléphone en rond':'glisse en rond')+' avant que la pâte ne prenne. Pas de trous.'],
-    ['Fais sauter !',(g?'un coup sec vers le haut':'glisse vers le haut')+' quand les bords dorent. Retournée ou salto, sinon elle se plie. Rattrape-la sous l\'ombre : par terre, c\'est −5 et tout le beurre à refaire.'],
+    ['Fais sauter !',(g?'un coup sec vers le haut':'glisse vers le haut')+' quand les bords dorent. Retournée ou salto, sinon elle se plie. Rattrape-la sous l\'ombre, recentre-la par petits à-coups : par terre, c\'est −5 et tout le beurre à refaire.'],
     ['Assiette !','quand la face 2 est dorée. Le chef note ta crêpe sur 10.']
   ];
   const ol=$('howto');ol.textContent='';
