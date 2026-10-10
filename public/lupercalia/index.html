@@ -270,6 +270,8 @@ table.lb td.sc{text-align:right;font-family:var(--f-display);font-size:22px;colo
 table.lb td.n{font-size:12px;color:var(--muted);text-align:right;width:60px}
 table.lb tr.me td{background:rgba(240,176,70,.12)}
 .empty{color:var(--muted);font-size:13px;margin:0}
+.lb-cap{margin:0 0 6px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.lb + .lb-cap{margin:8px 0 0;color:var(--gold)}
 .big{text-align:center;font-family:var(--f-display);font-size:76px;line-height:.9;color:var(--gold);-webkit-text-stroke:4px var(--edge);paint-order:stroke fill;text-shadow:0 5px 0 var(--edge)}
 .stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
 .stat{background:var(--edge);border-radius:8px;padding:6px 8px;display:flex;justify-content:space-between;gap:6px;font-size:13px}
@@ -1868,28 +1870,51 @@ function showOver(){
   for(const [k,v] of st){const d=document.createElement('div');d.className='stat';const a=document.createElement('span');a.textContent=k;const b=document.createElement('b');b.textContent=v;d.append(a,b);$('oStats').append(d);}
   $('oName').value=store.get('lp.name','');
   $('saveForm').hidden=S.crepes<=0;$('oSave').disabled=false;$('oSave').textContent='Enregistrer';
-  renderLb($('lbOver'),null);$('over').hidden=false;
+  lastMine=null;$('over').hidden=false;renderLb($('lbOver'),null);loadShared();
 }
-function getLb(){const a=store.get('lp.scores',[]);return Array.isArray(a)?a:[];}
-function renderLb(el,hiId){
-  const a=getLb();el.textContent='';
-  if(!a.length){const p=document.createElement('p');p.className='empty';p.textContent='Aucun score pour l\'instant. Le premier service est pour toi.';el.append(p);return;}
+/* leaderboard: shared on eulst.app (/scores/lupercalia/), this browser's own list when the server can't be reached */
+const LB_URL='/scores/lupercalia/';
+let shared=null; // last shared top 10, or null when offline
+function getLocal(){const a=store.get('lp.scores',[]);return Array.isArray(a)?a:[];}
+function saveLocal(entry){const a=getLocal();a.push(entry);a.sort((x,y)=>y.score-x.score);store.set('lp.scores',a.slice(0,20));}
+async function lbFetch(opts){
+  const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),6000);
+  try{const r=await fetch(LB_URL,{...opts,signal:ctl.signal,cache:'no-store'});const j=await r.json().catch(()=>({}));return{status:r.status,...j};}
+  catch(e){return{ok:false,reason:'offline'};}
+  finally{clearTimeout(tm);}
+}
+async function loadShared(){const r=await lbFetch({method:'GET'});shared=r.ok&&Array.isArray(r.top)?r.top:null;renderAllLb();}
+let lastMine=null;
+function renderLb(el,mine){
+  el.textContent='';
+  const rows=shared||getLocal();
+  const cap=document.createElement('p');cap.className='lb-cap';
+  cap.textContent=shared?'Classement de tous les joueurs':'Classement de ce téléphone (serveur injoignable)';
+  el.append(cap);
+  if(!rows.length){const p=document.createElement('p');p.className='empty';p.textContent='Aucun score pour l\'instant. Le premier service est pour toi.';el.append(p);return;}
   const tb=document.createElement('table');tb.className='lb';
-  a.slice(0,10).forEach((r,i)=>{const tr=document.createElement('tr');if(r.id===hiId)tr.className='me';
+  rows.slice(0,10).forEach((r,i)=>{const tr=document.createElement('tr');
+    if(mine&&r.name===mine.name&&r.score===mine.score&&(!mine.rank||mine.rank===i+1))tr.className='me';
     const c=(cls,txt)=>{const td=document.createElement('td');td.className=cls;td.textContent=txt;tr.append(td);};
     c('r',i+1);c('nm',r.name||'Anonyme');c('n',r.crepes+' cr.');c('sc',r.score);tb.append(tr);});
   el.append(tb);
+  if(mine&&mine.rank>10){const p=document.createElement('p');p.className='lb-cap';p.textContent=mine.name+' : '+mine.rank+'e place';el.append(p);}
 }
-$('saveForm').addEventListener('submit',e=>{
+function renderAllLb(){renderLb($('lbMenu'),null);if(!$('over').hidden)renderLb($('lbOver'),lastMine);}
+$('saveForm').addEventListener('submit',async e=>{
   e.preventDefault();
   const name=($('oName').value||'').trim().slice(0,12)||'Anonyme';store.set('lp.name',name);
-  const id=Date.now()+'-'+Math.random().toString(36).slice(2,6);
-  const a=getLb();a.push({id,name,score:S.score,crepes:S.crepes,date:new Date().toISOString().slice(0,10)});
-  a.sort((x,y)=>y.score-x.score);store.set('lp.scores',a.slice(0,20));
-  renderLb($('lbOver'),id);renderLb($('lbMenu'),null);$('oSave').disabled=true;$('oSave').textContent='Enregistré';
+  const btn=$('oSave');btn.disabled=true;btn.textContent='…';
+  const entry={name,score:S.score,crepes:S.crepes,date:new Date().toISOString().slice(0,10)};
+  saveLocal(entry);
+  const r=await lbFetch({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,score:S.score,crepes:S.crepes,lost:S.lost})});
+  if(r.ok){shared=r.top;lastMine={name,score:S.score,rank:r.rank};btn.textContent=r.rank?r.rank+'e !':'Enregistré';}
+  else{lastMine={name,score:S.score};btn.textContent=r.reason==='rate'?'Attends un peu':'Enregistré ici';
+    if(r.reason==='rate')btn.disabled=false;}
+  renderAllLb();
 });
 $('btnAgain').addEventListener('click',startGame);
-$('btnMenu').addEventListener('click',()=>{$('over').hidden=true;$('menu').hidden=false;renderLb($('lbMenu'),null);setPhase('menu');demoCrepe();});
+$('btnMenu').addEventListener('click',()=>{$('over').hidden=true;$('menu').hidden=false;renderLb($('lbMenu'),null);loadShared();setPhase('menu');demoCrepe();});
 
 function renderMode(){
   const g=S.mode==='gyro';
@@ -1963,7 +1988,7 @@ function demoCrepe(){
 /* =================== boot =================== */
 window.addEventListener('resize',resize);
 document.addEventListener('visibilitychange',()=>{if(document.hidden){AU.sizzle(0);MU.stop();}else if(S.running)MU.start();});
-resize();buildGauge();renderMode();renderToggles();renderLb($('lbMenu'),null);renderPlateCard();
+resize();buildGauge();renderMode();renderToggles();renderLb($('lbMenu'),null);loadShared();renderPlateCard();
 $('pZone').style.left=(0.9/1.6*100)+'%';$('pZone').style.width=((1.2-0.9)/1.6*100)+'%';
 demoCrepe();updateButtons();butterCoverage();
 

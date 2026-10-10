@@ -33,3 +33,7 @@ Un projet peut aussi recevoir une face de cube dessinée en pixel art via le cha
 ## Lupercalia
 
 Jeu de crêpes au gyroscope, fichier autonome dans `public/lupercalia/index.html` (Three.js et polices chargés depuis cdnjs et Google Fonts). Servi sur `eulst.app/lupercalia/` par la même réécriture que Bille et Hofmann. Le gyroscope et la voix du chef demandent le HTTPS ; sur iPhone l'autorisation des capteurs est demandée au bouton de départ. Le tableau des scores est local au navigateur (clé `lp.scores`).
+
+### Tableau des scores partagé
+
+`src/app/scores/lupercalia/route.ts` (GET : top 10, POST : enregistrer) stocke les scores dans Upstash Redis via son API REST, sans dépendance. Il lit `KV_REST_API_URL` / `KV_REST_API_TOKEN` (créées par l'intégration Upstash du Marketplace Vercel) ou `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`. Sans elles, la route répond 503 et le jeu affiche les scores du téléphone. La route est hors de `/api/`, protégé par mot de passe. Garde-fous : scores impossibles refusés (au plus 14 points par crêpe), 5 envois par minute et par adresse, 100 meilleurs conservés.
