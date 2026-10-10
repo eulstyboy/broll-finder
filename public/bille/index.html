@@ -256,6 +256,8 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid 
       <p>Penche le téléphone pour rouler la bille jusqu'au <b class="gold">trou doré</b>. Tu as 10 billes pour toute la partie : chaque bille tombée est perdue. Achète des billes à pouvoir entre les manches, sans dépasser 10.</p>
       <button class="btn big pulse" id="bPlay">Jouer</button>
       <button class="btn ghost small" id="bScores" type="button">Meilleurs scores</button>
+      <button class="btn ghost small" id="bInstall" type="button" hidden>Installer le jeu</button>
+      <p class="small note" id="installHelp" hidden></p>
       <p class="status" id="sensorStatus"><i></i><span>Capteurs : touche Jouer pour les activer</span></p>
       <p class="small">Sans capteurs : glisse le doigt pour incliner. Sur ordinateur : souris ou flèches, Espace pour sauter, Maj pour freiner.</p>
     </div>
@@ -330,6 +332,25 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid 
 
 <script src="levels.js?v=3.2"></script>
 <script src="game.js?v=3.2"></script>
-<script>/* version installable : hors ligne après la première visite */if('serviceWorker' in navigator&&window.isSecureContext){addEventListener('load',function(){navigator.serviceWorker.register('./sw.js').catch(function(){});});}</script>
+<script>/* version installable : hors ligne après la première visite, bouton « Installer le jeu » sur l'écran titre */
+(function(){
+  if('serviceWorker' in navigator&&window.isSecureContext){addEventListener('load',function(){navigator.serviceWorker.register('./sw.js').catch(function(){});});}
+  var btn=document.getElementById('bInstall'),help=document.getElementById('installHelp');if(!btn)return;
+  var installed=matchMedia('(display-mode: fullscreen)').matches||matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+  if(installed)return;
+  var ua=navigator.userAgent,ios=/iP(hone|ad|od)/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1),android=/Android/.test(ua);
+  var prompt=null;
+  function say(t){help.textContent=t;help.hidden=false;}
+  addEventListener('beforeinstallprompt',function(e){e.preventDefault();prompt=e;btn.hidden=false;help.hidden=true;});
+  addEventListener('appinstalled',function(){prompt=null;btn.hidden=true;say('Installé : retrouve Bille Foraine parmi tes apps.');});
+  if(ios){btn.hidden=false;}
+  else if(android){setTimeout(function(){if(!prompt)btn.hidden=false;},2500);}
+  btn.addEventListener('click',function(){
+    if(prompt){prompt.prompt();prompt.userChoice.then(function(r){if(r.outcome==='accepted')btn.hidden=true;prompt=null;});return;}
+    if(ios)say('Dans Safari : touche Partager (le carré avec une flèche), puis « Sur l’écran d’accueil ».');
+    else say('Dans Chrome : menu ⋮ puis « Installer l’application ». Si Chrome dit qu’elle est déjà installée sans pouvoir l’ouvrir : Paramètres Android → Applis → Bille → Désinstaller, puis réessaie.');
+  });
+})();
+</script>
 </body>
 </html>

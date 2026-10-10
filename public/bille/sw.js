@@ -2,7 +2,7 @@
    Fichiers du jeu : réseau d'abord (les mises à jour arrivent tout de suite), copie locale si hors ligne.
    Polices et bibliothèques externes (adresses versionnées) : copie locale d'abord.
    Les scores (/api/) ne passent jamais par le cache. */
-const CACHE = 'eulst-bille-1';
+const CACHE = 'eulst-bille-2';
 /* polices et bibliothèques externes, préchargées pour jouer hors ligne dès l'installation */
 const EXTERNAL_PRECACHE = ["https://fonts.googleapis.com/css2?family=Jersey+10&family=Pixelify+Sans:wght@400;600;700&display=swap"];
 const PRECACHE = ["./", "./index.html", "./levels.js", "./game.js", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png", "./apple-touch-icon.png"];
