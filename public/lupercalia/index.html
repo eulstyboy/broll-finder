@@ -153,6 +153,44 @@ body{background:var(--ink);color:var(--cream);font-family:var(--f-body);font-siz
 .gauge-tag{position:absolute;right:30px;font-size:10px;letter-spacing:.1em;white-space:nowrap;transform:translateY(50%);color:var(--cream);background:rgba(11,8,16,.8);padding:2px 5px;border-radius:4px}
 .gauge-mark{position:absolute;left:-5px;right:-5px;height:4px;background:var(--cream);box-shadow:0 0 0 2px var(--edge);transform:translateY(50%)}
 
+/* Coach: the gesture, drawn and animated, during the first crêpe */
+.coach{position:absolute;left:calc(50% - 14px);bottom:52px;translate:-50% 0;width:min(330px,calc(100% - 84px));z-index:5;pointer-events:none;
+  display:grid;grid-template-columns:62px 1fr;gap:10px;align-items:center;background:var(--panel);border-radius:12px;
+  box-shadow:inset 0 0 0 2px var(--butter),0 5px 0 var(--edge);padding:8px 12px 8px 8px}
+.coach.pop{animation:cpop .35s cubic-bezier(.2,1.6,.4,1)}
+.coach.nag{animation:nudge .3s steps(4) 2;box-shadow:inset 0 0 0 2px var(--mult),0 5px 0 var(--edge)}
+@keyframes cpop{0%{transform:translateY(20px) scale(.85);opacity:0}100%{transform:none;opacity:1}}
+.coach-txt{min-width:0}
+.coach-txt b{display:block;font-family:var(--f-display);font-size:22px;font-weight:400;line-height:1;color:var(--butter);margin-bottom:3px}
+.coach-txt span{display:block;font-size:12px;line-height:1.3;text-wrap:pretty}
+.coach-fig{position:relative;width:62px;height:62px;display:grid;place-items:center;perspective:160px;background:var(--edge);border-radius:9px}
+.coach-fig .ph{width:30px;height:50px;transform-style:preserve-3d}
+.coach-fig .fg{position:absolute;width:22px;height:22px;left:20px;top:20px}
+.coach-fig .pn{width:50px;height:50px}
+.coach-fig .bt{font-family:var(--f-display);font-size:11px;line-height:1;background:var(--chips);border-radius:5px;padding:4px 3px 2px;box-shadow:0 3px 0 var(--chips-dk);max-width:56px;overflow:hidden}
+.fig-tilt .ph{animation:tiltC 1.6s linear infinite}
+@keyframes tiltC{0%,100%{transform:rotateX(28deg)}25%{transform:rotateY(28deg)}50%{transform:rotateX(-28deg)}75%{transform:rotateY(-28deg)}}
+.fig-flick .ph{animation:flick 1.3s cubic-bezier(.3,0,.2,1) infinite}
+.fig-flick .cr{animation:crUp 1.3s cubic-bezier(.3,0,.2,1) infinite;transform-box:fill-box;transform-origin:center}
+@keyframes flick{0%,42%{transform:translateY(7px)}52%{transform:translateY(-9px) rotateX(32deg)}66%,100%{transform:translateY(7px)}}
+@keyframes crUp{0%,48%{transform:none}62%{transform:translateY(-26px) scaleY(.3)}76%{transform:translateY(-14px) scaleY(-1)}90%,100%{transform:none}}
+.fig-side .ph{animation:side 1.4s ease-in-out infinite}
+@keyframes side{0%,100%{transform:rotateY(-30deg) translateX(-7px)}50%{transform:rotateY(30deg) translateX(7px)}}
+.fig-right .ph{animation:right 1.4s ease-in-out infinite;transform-origin:50% 90%}
+@keyframes right{0%,25%{transform:rotate(0)}60%,100%{transform:rotate(32deg) translateX(5px)}}
+.fig-circle .orbit{position:absolute;inset:0;animation:orbit 1.4s linear infinite}
+.fig-circle .fg{left:20px;top:6px}
+@keyframes orbit{to{transform:rotate(360deg)}}
+.fig-swipe .fg{animation:swUp 1.2s ease-in infinite}
+@keyframes swUp{0%{transform:translateY(18px);opacity:0}15%{opacity:1}60%{transform:translateY(-18px);opacity:1}100%{transform:translateY(-18px);opacity:0}}
+.fig-drag .fg{animation:side 1.4s ease-in-out infinite}
+.fig-rub .fg{animation:rub .45s ease-in-out infinite alternate}
+@keyframes rub{from{transform:translate(-13px,5px)}to{transform:translate(13px,-6px)}}
+.fig-tap .fg,.fig-hold .fg{left:auto;right:4px;top:auto;bottom:4px}
+.fig-tap .fg{animation:press .9s ease-in-out infinite}
+.fig-hold .fg{animation:press 1.6s ease-in-out infinite}
+@keyframes press{0%,100%{transform:scale(1)}25%,75%{transform:scale(.78)}}
+
 /* Controls */
 .controls{display:grid;grid-template-columns:1.15fr 1.25fr 1fr;gap:8px}
 .card{position:relative;border:0;border-radius:12px;color:var(--cream);font:inherit;cursor:pointer;
@@ -240,7 +278,7 @@ table.lb tr.me td{background:rgba(240,176,70,.12)}
 .save input{flex:1;min-width:0;font:inherit;font-size:16px;color:var(--cream);background:var(--edge);border:0;border-radius:9px;padding:10px 12px;box-shadow:inset 0 0 0 2px var(--panel-hi)}
 .save .btn{width:auto;font-size:22px;padding:9px 14px 6px}
 @media (prefers-reduced-motion:reduce){
-  .wob,.card.plate.ready,.card.butter.want,.box.time.hot .num,.face,.sh .burst,.sh .w span{animation-duration:0s!important;animation-iteration-count:1!important}
+  .wob,.card.plate.ready,.card.butter.want,.box.time.hot .num,.face,.sh .burst,.sh .w span,.coach-fig *{animation-duration:0s!important;animation-iteration-count:1!important}
   #stage.shake,#stage.shake2{animation:none}
 }
 </style>
@@ -274,6 +312,10 @@ table.lb tr.me td{background:rgba(240,176,70,.12)}
     <div class="meter" id="pMeter" hidden>
       <div class="meter-track"><div class="meter-zone" id="pZone"></div><div class="meter-fill" id="pFill"></div></div>
       <div class="meter-cap"><span>LOUCHE</span><span>RELÂCHE DANS LE VERT</span></div>
+    </div>
+    <div class="coach" id="coach" hidden aria-live="polite">
+      <div class="coach-fig" id="coachFig"></div>
+      <div class="coach-txt"><b id="coachT"></b><span id="coachS"></span></div>
     </div>
     <div class="gauge" id="gauge" hidden>
       <div class="gauge-track" id="gaugeTrack"></div>
@@ -402,7 +444,7 @@ const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.
 
 /* ---------- soft crêpe: position-based cloth on a polar disc (32 segments × 7 rings) ---------- */
 const CL=(()=>{
-  const NR=7,NS=32,CR=1.0,PAN_R=1.08,THICK=0.014;
+  const NR=7,NS=32,CR=1.0,PAN_R=1.12,THICK=0.014,RIM_Y=0.012,RIM_C=0.065,SIDE_R=1.17;
   const PH={G:30,SUB:4,ITER:8,DAMP:0.998,KAIR:0.3,KB:0.2,KSHEAR:0.7,MIND:0.05,
             SELF_FRIC:0.7,     // contacting layers share their velocity: no rubbery rebound
             LAND_DAMP:0.93,    // per-substep damping once the crêpe lies on the pan
@@ -539,7 +581,20 @@ const CL=(()=>{
           pos[k+1]=THICK;prev[k+1]=THICK;contact[i]=1;      // no bounce: the pan swallows the normal speed
           const tx=(pos[k]-prev[k])-pdx,tz=(pos[k+2]-prev[k+2])-pdz;
           pos[k]-=tx*st.mu;pos[k+2]-=tz*st.mu;
-        }}
+          continue;
+        }
+        // the rolled lip: a crêpe hanging over the edge drapes around it instead of cutting through
+        const r=Math.sqrt(lx*lx+lz*lz);
+        if(r>PAN_R-0.08&&r<PAN_R+0.2){
+          const dr=r-PAN_R,dy=pos[k+1]-RIM_Y,dd=Math.sqrt(dr*dr+dy*dy);
+          if(dd<RIM_C&&dd>1e-6){const push=(RIM_C-dd)/dd,ux=lx/r,uz=lz/r;
+            const ex=ux*dr*push,ey=dy*push,ez=uz*dr*push;
+            pos[k]+=ex;pos[k+1]+=ey;pos[k+2]+=ez;prev[k]+=ex;prev[k+1]+=ey;prev[k+2]+=ez;contact[i]=1;}
+        }
+        // the pan's side wall, just below the lip
+        if(r>=PAN_R&&r<SIDE_R&&pos[k+1]<RIM_Y&&pos[k+1]>-0.1){const e=(SIDE_R-r)/r;
+          pos[k]+=lx*e;pos[k+2]+=lz*e;prev[k]+=lx*e;prev[k+2]+=lz*e;}
+      }
     }
     st.pan.x=panX;st.pan.z=panZ;
     const nn=mainNormal(),l=st.lastN;
@@ -702,7 +757,7 @@ const stage=$('stage'),cv=$('game'),fx=$('fx'),fxc=fx.getContext('2d');
 const renderer=new THREE.WebGLRenderer({canvas:cv,antialias:false,alpha:true,powerPreference:'low-power'});
 renderer.setPixelRatio(1);renderer.setClearColor(0x000000,0);
 const scene=new THREE.Scene();
-const camera=new THREE.PerspectiveCamera(38,1,0.1,80);
+const camera=new THREE.PerspectiveCamera(38,1,1,80);
 scene.add(new THREE.HemisphereLight(0xffe9cc,0x2a1d3a,0.72));
 const sun=new THREE.DirectionalLight(0xfff0d8,0.9);sun.position.set(-1.8,5,2.2);scene.add(sun);
 const rim=new THREE.DirectionalLight(0x6f8cff,0.28);rim.position.set(2.2,1.5,-3);scene.add(rim);
@@ -754,7 +809,7 @@ const ferrule=new THREE.Mesh(new THREE.BoxGeometry(0.23,0.17,0.12),new THREE.Mes
 const bCv=mkCanvas(BN,BN),bcx=bCv.getContext('2d'),bImg=bcx.createImageData(BN,BN);
 const bTex=nearest(new THREE.CanvasTexture(bCv));
 const butterFilm=new THREE.Mesh(new THREE.CircleGeometry(1.1,40),new THREE.MeshBasicMaterial({map:bTex,transparent:true,depthWrite:false}));
-butterFilm.rotation.x=-Math.PI/2;butterFilm.position.y=0.004;panTilt.add(butterFilm);
+butterFilm.rotation.x=-Math.PI/2;butterFilm.position.y=0.006;butterFilm.renderOrder=1;Object.assign(butterFilm.material,{polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-2});panTilt.add(butterFilm);
 const knobG=new THREE.Group();panTilt.add(knobG);knobG.visible=false;
 const knobM=new THREE.MeshPhongMaterial({color:0xffd760,flatShading:true,shininess:90,specular:0xfff2c0});
 const knobMesh=new THREE.Mesh(new THREE.BoxGeometry(0.34,0.14,0.24),knobM);knobMesh.position.y=0.07;knobG.add(knobMesh);
@@ -801,10 +856,10 @@ const plateG=new THREE.Group();scene.add(plateG);
 const china=new THREE.MeshPhongMaterial({color:0xf2ede4,flatShading:true,shininess:60,specular:0x777777});
 const plateBody=new THREE.Mesh(new THREE.CylinderGeometry(0.82,0.55,0.08,36),china);plateBody.position.y=0.04;plateG.add(plateBody);
 const plateWell=new THREE.Mesh(new THREE.CircleGeometry(0.6,32),new THREE.MeshPhongMaterial({color:0xe6dfd2,flatShading:true}));
-plateWell.rotation.x=-Math.PI/2;plateWell.position.y=0.081;plateG.add(plateWell);
+plateWell.rotation.x=-Math.PI/2;plateWell.position.y=0.09;Object.assign(plateWell.material,{polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-2});plateG.add(plateWell);
 const band=new THREE.Mesh(new THREE.TorusGeometry(0.72,0.018,3,36),new THREE.MeshBasicMaterial({color:0x2f6fd6}));
-band.rotation.x=Math.PI/2;band.position.y=0.084;plateG.add(band);
-const stackG=new THREE.Group();stackG.position.y=0.085;plateG.add(stackG);
+band.rotation.x=Math.PI/2;band.position.y=0.092;plateG.add(band);
+const stackG=new THREE.Group();stackG.position.y=0.1;plateG.add(stackG);
 const plateShadow=new THREE.Mesh(new THREE.CircleGeometry(0.85,24),new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0.35,depthWrite:false}));
 plateShadow.rotation.x=-Math.PI/2;plateShadow.position.set(0.06,-0.005,0.06);plateG.add(plateShadow);
 let stackH=0;
@@ -1017,6 +1072,9 @@ stage.addEventListener('pointermove',e=>{
   ptr.x=e.clientX;ptr.y=e.clientY;
   const dx=ptr.x-ptr.x0,dy=ptr.y-ptr.y0,rad=Math.min(ptr.r.width,ptr.r.height)*0.22;
   if(S.phase==='empty'&&S.rub){const p=stageXY(ptr.x,ptr.y),g=screenToGround(p.x,p.y);S.rub.x=g.x-S.pan.x;S.rub.z=g.z-S.pan.z;}
+  else if(gyroLive()&&(S.phase==='pour'||S.phase==='spread'||S.phase==='cook1'||S.phase==='flight')){
+    if(Math.hypot(dx,dy)>14&&!ptr.nagged){ptr.nagged=true;wrongGesture();}
+  }
   else if(S.phase==='pour'||S.phase==='spread'){
     let jx=dx/rad,jy=dy/rad;const l=Math.hypot(jx,jy);if(l>1){jx/=l;jy/=l;}
     joy.active=true;joy.x=jx;joy.y=jy;
@@ -1030,7 +1088,8 @@ stage.addEventListener('pointermove',e=>{
 function endPtr(e){
   if(!ptr||e.pointerId!==ptr.id)return;
   const dx=ptr.x-ptr.x0,dy=ptr.y-ptr.y0,dt=performance.now()-ptr.t0,r=ptr.r;
-  if(S.phase==='cook1'&&-dy>r.height*0.04&&dt<1100&&-dy>Math.abs(dx)*0.7)doFlip(-dy/(r.height*0.85),clamp(dx/(-dy),-1,1)*0.8,0);
+  if(gyroLive()&&S.phase!=='empty'&&S.phase!=='cook2'){if(!ptr.nagged&&S.phase!=='plating'&&S.phase!=='lost')wrongGesture();}
+  else if(S.phase==='cook1'&&-dy>r.height*0.04&&dt<1100&&-dy>Math.abs(dx)*0.7)doFlip(-dy/(r.height*0.85),clamp(dx/(-dy),-1,1)*0.8,0);
   else if(S.phase==='cook2'&&dx>r.width*0.22&&Math.abs(dx)>Math.abs(dy))plate();
   joy.active=false;joy.x=joy.y=0;flipPreview=-1;ptr=null;S.rub=null;
 }
@@ -1246,7 +1305,7 @@ function settle(){
   else if(S.catchKind==='edge')toast('À cheval','var(--butter)');
 }
 function fall(){
-  S.flight=null;S.lost++;S.lostT=0;CL.st.mu=0;
+  S.flight=null;S.lost++;S.lostT=0;CL.st.mu=0;S.coach=false;
   matA.transparent=matB.transparent=true;
   setPhase('lost');
   // splat: a wet slap, a falling slide whistle and a sad trombone
@@ -1291,6 +1350,7 @@ const QUIPS={
   edge:['À cheval sur le bord, comme ton moral.']
 };
 function finishCrepe(){
+  S.coach=false;
   const g=grade(),note=g.note;
   const faceT=note>=7?'happy':note>=4?'meh':'mad';
   let comment=pick(QUIPS[faceT]);
@@ -1441,6 +1501,58 @@ function buildGauge(){
 }
 let gaugeHold=0;
 function showGauge(P,hold){$('gaugeMark').style.bottom=clamp(P/P_MAX*100,0,100)+'%';if(hold)gaugeHold=1.4;}
+/* =================== coach: shows the gesture during the first crêpe =================== */
+const gyroLive=()=>S.mode==='gyro'&&hasSensor();
+const PHONE=`<svg class="ph" viewBox="0 0 36 60" aria-hidden="true"><rect x="2.5" y="2.5" width="31" height="55" rx="6" fill="#140f1c" stroke="#f8edd6" stroke-width="3"/><rect x="14" y="6" width="8" height="2" rx="1" fill="#43375a"/><circle cx="18" cy="31" r="10" fill="#2a2422" stroke="#5a4a42" stroke-width="2"/><circle class="cr" cx="18" cy="31" r="6.5" fill="#f0b046"/></svg>`;
+const FINGER=`<svg class="fg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="#ffd35a" stroke-width="2" opacity=".55"/><circle cx="12" cy="12" r="6.5" fill="#f8edd6" stroke="#140f1c" stroke-width="2"/></svg>`;
+const PAN=`<svg class="pn" viewBox="0 0 60 60" aria-hidden="true"><circle cx="30" cy="30" r="24" fill="#2a2422" stroke="#5a4a42" stroke-width="3"/><rect x="25" y="22" width="11" height="8" fill="#ffd35a"/></svg>`;
+const BTN=t=>`<div class="bt">${t}</div>`;
+const COACH={
+  butterBtn:{fig:'tap',art:BTN('BEURRE')+FINGER,t:'Touche BEURRE',s:'Une noix de beurre tombe dans la poêle.'},
+  rub:{fig:'rub',art:PAN+FINGER,t:'Frotte au doigt',s:'Pousse le beurre partout : 60 % de la poêle.'},
+  pour:{fig:'hold',art:BTN('LOUCHE')+FINGER,t:'Maintiens LOUCHE',s:'Relâche quand la jauge est dans le vert.'},
+  tilt:{fig:'tilt',art:PHONE,t:'Penche en rond',s:'Fais tourner le téléphone à plat. Ne touche pas l\'écran.'},
+  circle:{fig:'circle',art:'<div class="orbit">'+FINGER+'</div>',t:'Glisse en rond',s:'Fais des cercles au doigt pour étaler.'},
+  flick:{fig:'flick',art:PHONE,t:'Coup sec vers le haut',s:'Quand le chef crie : lance le téléphone vers le haut, d\'un geste bref, comme une poêle.'},
+  swipe:{fig:'swipe',art:FINGER,t:'Glisse vers le haut',s:'Petit geste : retournée. Grand geste : salto.'},
+  side:{fig:'side',art:PHONE,t:'Penche sous l\'ombre',s:'Incline le téléphone : la poêle suit et rattrape la crêpe.'},
+  drag:{fig:'drag',art:FINGER,t:'Glisse la poêle',s:'Place-la sous l\'ombre au doigt.'},
+  right:{fig:'right',art:PHONE,t:'Penche à droite',s:'Face 2 dorée : la crêpe file dans l\'assiette. Ou touche ASSIETTE.'},
+  tapPlate:{fig:'tap',art:BTN('ASSIETTE')+FINGER,t:'Touche ASSIETTE',s:'Quand la face 2 est dorée.'}
+};
+function coachKeyFor(){
+  const g=gyroLive();
+  switch(S.phase){
+    case 'empty':return bCov<BUT_GOAL?(S.knob?'rub':'butterBtn'):'pour';
+    case 'pour':return 'pour';
+    case 'spread':return g?'tilt':'circle';
+    case 'cook1':return g?'flick':'swipe';
+    case 'flight':return g?'side':'drag';
+    case 'cook2':return g?'right':'tapPlate';
+  }
+  return null;
+}
+let coachNag=0;
+function updateCoach(dt){
+  coachNag=Math.max(0,coachNag-dt);
+  const show=S.running&&(S.coach||coachNag>0);
+  const key=show?coachKeyFor():null,el=$('coach');
+  if(key!==S.coachKey){
+    S.coachKey=key;
+    if(!key){el.hidden=true;return;}
+    const c=COACH[key];
+    $('coachFig').className='coach-fig fig-'+c.fig;$('coachFig').innerHTML=c.art;
+    $('coachT').textContent=c.t;$('coachS').textContent=c.s;
+    el.hidden=false;el.classList.remove('pop');void el.offsetWidth;el.classList.add('pop');
+  }
+}
+function wrongGesture(){
+  coachNag=3;S.coachKey=null;updateCoach(0);
+  const el=$('coach');el.classList.remove('nag');void el.offsetWidth;el.classList.add('nag');
+  toast('Pas au doigt !','var(--butter)',S.phase==='cook1'?'Coup sec avec le téléphone':'Penche le téléphone');
+  AU.tone(330,0.08,'square',0.05);AU.tone(247,0.12,'square',0.05,0,0.08);
+}
+
 function updateHint(){
   const g=S.mode==='gyro';let t='';
   switch(S.phase){
@@ -1636,6 +1748,7 @@ function update(dt){
   if(S.shown!==scoreTarget){const d=scoreTarget-S.shown;S.shown+=Math.sign(d)*Math.max(1,Math.abs(d)*dt*8);if(Math.abs(scoreTarget-S.shown)<1)S.shown=scoreTarget;$('score').textContent=Math.round(S.shown);}
   faceTick+=dt;if(faceType&&faceTick>(faceType==='mad'?0.12:0.28)){faceTick=0;faceFrame++;drawFace();}
   if(S.phase==='empty'&&((S.t*3)|0)!==((S.t*3-dt*3)|0))updateHint();
+  updateCoach(dt);
 }
 
 /* =================== render =================== */
@@ -1681,7 +1794,7 @@ function render(t,dt){
   if(S.phase==='flight'&&S.flight){
     const c=CL.centroid(),ht=Math.max(0,c.y);
     marker.visible=ht>0.25;
-    const s=1-Math.min(0.35,ht*0.06);marker.scale.set(s,1,s);marker.position.set(c.x,0.006,c.z);
+    const s=1-Math.min(0.35,ht*0.06);marker.scale.set(s,1,s);marker.position.set(c.x,0.012,c.z);
     shadow.material.opacity=0.45-Math.min(0.25,ht*0.05);
     target.material.opacity=0.55+0.45*Math.abs(Math.sin(t*7));
   }else marker.visible=false;
@@ -1729,7 +1842,7 @@ async function startGame(){
   }
   try{if(navigator.wakeLock)wake=await navigator.wakeLock.request('screen');}catch(e){wake=null;}
   Object.assign(S,{running:true,timeLeft:GAME_TIME,score:0,shown:0,crepes:0,saltos:0,lost:0,bestNote:-1,notes:[],
-    knob:null,rub:null,hasCrepe:false,flipped:false,flight:null,lastTick:0,hurried:false,shoutKey:null});
+    knob:null,rub:null,hasCrepe:false,flipped:false,flight:null,lastTick:0,hurried:false,shoutKey:null,coach:true,coachKey:null});
   scoreTarget=0;butter.fill(0);butterCoverage();lastPct=-1;clearStack();
   resetBatter();holder.visible=false;setHolderStatic(true);CL.place(0,0);
   $('score').textContent='0';$('count').textContent='0';renderPlateCard();
@@ -1738,7 +1851,7 @@ async function startGame(){
   MU.start();
 }
 function endGame(){
-  S.running=false;S.timeLeft=0;$('time').textContent='0:00';
+  S.running=false;S.timeLeft=0;$('time').textContent='0:00';$('coach').hidden=true;S.coachKey=null;
   S.hasCrepe=false;S.flight=null;S.knob=null;holder.visible=false;
   setPhase('over');AU.sizzle(0);MU.stop();oneShot('stop');
   [784,659,523,392].forEach((fq,i)=>AU.tone(fq,0.22,'square',0.05,0,0.3+i*0.14));
