@@ -16,6 +16,7 @@ const DEBUG = /debug/.test(location.hash);
 const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const TOUCH = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 const MAX_BALLS = 10;
+const BRAVE = !!(navigator.brave && navigator.brave.isBrave);
 
 /* ---------------- Réglages ---------------- */
 const DEF = { sens: 1, relief: 1, persp: 1, fric: 1, jump: 13, shake: 1, pix: 'normal', sound: true };
@@ -285,7 +286,8 @@ function checkSensors() {
   if (SENS.started && !SENS.warned && SENS.src === 'none' && t - SENS.since > 1800) {
     SENS.warned = true; updateSensorStatus();
     if (TOUCH) toast(SENS.denied ? 'Mouvements refusés. Autorise-les dans les réglages du navigateur, puis recharge la page.'
-      : 'Ton navigateur ne transmet pas les mouvements du téléphone. Joue au doigt, ou ouvre la page dans Chrome ou Safari.', 5000);
+      : BRAVE ? 'Brave bloque les mouvements du téléphone. Baisse les boucliers (icône du lion) pour eulst.app, ou ouvre la page dans Chrome.'
+      : 'Ton navigateur ne transmet pas les mouvements du téléphone. Joue au doigt, ou ouvre la page dans Chrome ou Safari.', 6000);
   }
 }
 function enableSensors() {
@@ -305,7 +307,7 @@ function updateSensorStatus() {
   else if (SENS.src === 'gravity') { cls = 'ok'; txt = 'Capteurs actifs : l’accéléromètre pilote la bille'; }
   else if (!TOUCH) txt = 'Sur ordinateur : la souris ou les flèches inclinent la boîte';
   else if (SENS.denied) { cls = 'bad'; txt = 'Mouvements refusés : autorise-les dans les réglages du navigateur'; }
-  else if (SENS.warned) { cls = 'bad'; txt = 'Aucun mouvement reçu : tu joues au doigt'; }
+  else if (SENS.warned) { cls = 'bad'; txt = BRAVE ? 'Brave bloque les mouvements : baisse les boucliers (lion) pour ce site' : 'Aucun mouvement reçu : tu joues au doigt'; }
   else txt = 'Capteurs : touche Jouer pour les activer';
   el.className = 'status ' + cls; el.querySelector('span').textContent = txt;
 }
@@ -1173,7 +1175,7 @@ function updateSensorInfo() {
   let txt;
   if (SENS.src === 'orientation' && SENS.ori) txt = `Gyroscope · avant/arrière ${f(SENS.ori.b)} · gauche/droite ${f(SENS.ori.g)}`;
   else if (SENS.src === 'gravity' && SENS.grav) txt = `Accéléromètre · x ${SENS.grav.x.toFixed(1)} · y ${SENS.grav.y.toFixed(1)}`;
-  else txt = SENS.grav ? 'Accéléromètre détecté, en attente' : 'Aucun mouvement reçu du navigateur';
+  else txt = SENS.grav ? 'Accéléromètre détecté, en attente' : 'Aucun mouvement reçu du navigateur' + (BRAVE ? ' (Brave les bloque)' : '');
   el.textContent = txt + ` · pente ${tilt.x.toFixed(2)} / ${tilt.y.toFixed(2)}`;
 }
 
