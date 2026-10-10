@@ -219,6 +219,12 @@ ol.steps b{color:var(--gold);font-weight:700}
 .btn.blue{background:var(--chips);box-shadow:inset 0 0 0 2px #5aa8ff,0 6px 0 var(--chips-dk)}
 .btns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .note{font-size:12px;color:var(--muted);line-height:1.4;margin:8px 0 0}
+.sh-text{margin:0 0 12px;font-size:14px;line-height:1.45;text-wrap:pretty}
+.sh-url{display:block;background:var(--edge);border-radius:8px;padding:8px 10px;font-size:13px;color:var(--butter);overflow-wrap:anywhere;user-select:all;-webkit-user-select:all}
+.sh-btns{margin-top:12px;grid-template-columns:1fr}
+#sensorHelp{background:rgba(14,10,20,.95);z-index:45}
+.btn.sh-small{font-size:22px;padding:10px 10px 6px}
+a.btn{display:block;text-align:center;text-decoration:none;box-sizing:border-box}
 table.lb{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
 table.lb td{padding:5px 4px;border-top:2px solid var(--edge);font-size:14px}
 table.lb td.r{width:28px;font-family:var(--f-display);font-size:20px;color:var(--muted)}
@@ -341,6 +347,22 @@ table.lb tr.me td{background:rgba(240,176,70,.12)}
       <h2>Meilleurs services</h2>
       <div id="lbMenu"></div>
     </div>
+  </div>
+</div>
+
+<div class="overlay" id="sensorHelp" hidden>
+  <div class="sheet">
+    <div class="panel">
+      <h2 id="shTitle">Pas de gyroscope ici</h2>
+      <p class="sh-text" id="shText"></p>
+      <code class="sh-url" id="shUrl"></code>
+      <div class="btns sh-btns">
+        <button class="btn blue sh-small" id="shCopy">COPIER LE LIEN</button>
+        <a class="btn sh-small" id="shChrome" href="#">OUVRIR DANS CHROME</a>
+      </div>
+    </div>
+    <button class="btn" id="shTouch">JOUER AU DOIGT</button>
+    <button class="btn blue sh-small" id="shBack">RETOUR</button>
   </div>
 </div>
 
@@ -897,7 +919,22 @@ function say(text,lvl){
 const ori={beta:0,gamma:0,seen:false},cal={b:0,g:0};
 const mot={grav:{x:0,y:0,z:0},cap:false,capT:0,peak:0,vec:{x:0,y:0,z:0},cool:0};
 window.addEventListener('deviceorientation',e=>{if(e.beta==null||e.gamma==null)return;ori.seen=true;ori.beta=e.beta;ori.gamma=e.gamma;});
+// fallback when the browser sends motion but no orientation: tilt from the gravity vector
+const IOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const ANDROID=/Android/i.test(navigator.userAgent);
+const SN={g:{x:0,y:0},g0:{x:0,y:0},gT:0,started:false};
+let IS_BRAVE=false;
+try{if(navigator.brave&&navigator.brave.isBrave)navigator.brave.isBrave().then(v=>{IS_BRAVE=!!v;renderMode();}).catch(()=>{});}catch(e){}
+const gravLive=()=>SN.gT>0&&performance.now()-SN.gT<1000;
+function hasSensor(){return ori.seen||gravLive();}
+function sensorTilt(){
+  if(ori.seen)return{x:(ori.gamma-cal.g)/28,y:(ori.beta-cal.b)/28};
+  if(gravLive()){const s=IOS?-1:1,k=1/(9.81*0.47);return{x:clamp(-(SN.g.x-SN.g0.x)*s*k,-2,2),y:clamp((SN.g.y-SN.g0.y)*s*k,-2,2)};}
+  return null;
+}
 window.addEventListener('devicemotion',e=>{
+  const ag=e.accelerationIncludingGravity;
+  if(ag&&ag.x!=null&&ag.y!=null){if(!SN.gT){SN.g={x:ag.x,y:ag.y};}else{SN.g.x=lerp(SN.g.x,ag.x,0.35);SN.g.y=lerp(SN.g.y,ag.y,0.35);}SN.gT=performance.now();}
   let a=e.acceleration;
   if(!a||a.x==null){const g=e.accelerationIncludingGravity;if(!g||g.x==null)return;
     mot.grav.x=lerp(mot.grav.x,g.x,0.1);mot.grav.y=lerp(mot.grav.y,g.y,0.1);mot.grav.z=lerp(mot.grav.z,g.z,0.1);
@@ -913,11 +950,11 @@ window.addEventListener('devicemotion',e=>{
 async function askSensors(){
   try{if(typeof DeviceOrientationEvent!=='undefined'&&typeof DeviceOrientationEvent.requestPermission==='function')await DeviceOrientationEvent.requestPermission();}catch(e){}
   try{if(typeof DeviceMotionEvent!=='undefined'&&typeof DeviceMotionEvent.requestPermission==='function')await DeviceMotionEvent.requestPermission();}catch(e){}
-  if(ori.seen)return true;
-  await new Promise(r=>setTimeout(r,700));
-  return ori.seen;
+  if(hasSensor())return true;
+  await new Promise(r=>setTimeout(r,900));
+  return hasSensor();
 }
-function calibrate(){cal.b=ori.beta;cal.g=ori.gamma;}
+function calibrate(){cal.b=ori.beta;cal.g=ori.gamma;SN.g0={x:SN.g.x,y:SN.g.y};}
 
 /* =================== input =================== */
 const keys={},joy={active:false,x:0,y:0};
@@ -982,7 +1019,7 @@ window.addEventListener('keyup',e=>{
 });
 function readTilt(dt){
   let tx=0,ty=0;
-  if(S.mode==='gyro'&&ori.seen){tx=(ori.gamma-cal.g)/28;ty=(ori.beta-cal.b)/28;}
+  if(S.mode==='gyro'){const st=sensorTilt();if(st){tx=st.x;ty=st.y;}}
   if(joy.active){tx=joy.x;ty=joy.y;}
   if(S.phase!=='empty'){if(keys.ArrowLeft)tx-=1;if(keys.ArrowRight)tx+=1;if(keys.ArrowUp)ty-=1;if(keys.ArrowDown)ty+=1;}
   const l=Math.hypot(tx,ty);if(l>1){tx/=l;ty/=l;}
@@ -1064,7 +1101,7 @@ function updateKnob(dt){
   if(S.rub){const s=1-Math.exp(-dt*20);k.x=lerp(k.x,S.rub.x,s);k.z=lerp(k.z,S.rub.z,s);k.vx=k.vz=0;}
   else{
     let ax=0,az=0;
-    if(S.mode==='gyro'&&ori.seen){ax=(ori.gamma-cal.g)/28*7;az=(ori.beta-cal.b)/28*7;}
+    if(S.mode==='gyro'){const st=sensorTilt();if(st){ax=st.x*7;az=st.y*7;}}
     if(keys.ArrowLeft)ax-=6;if(keys.ArrowRight)ax+=6;if(keys.ArrowUp)az-=6;if(keys.ArrowDown)az+=6;
     k.vx=(k.vx+ax*dt)*Math.exp(-dt*2.5);k.vz=(k.vz+az*dt)*Math.exp(-dt*2.5);
     k.x+=k.vx*dt;k.z+=k.vz*dt;
@@ -1106,7 +1143,7 @@ function paintButter(t){
 function setPhase(p){S.phase=p;S.phaseT=0;updateHint();updateButtons();}
 function startPour(){
   if(!S.running||S.phase!=='empty')return;
-  if(S.mode==='gyro'&&ori.seen)calibrate();
+  if(S.mode==='gyro'&&hasSensor())calibrate();
   if(S.knob&&S.knob.landed){ // the rest of the knob melts where it stands
     const k=S.knob;for(let z=0;z<BN;z++)for(let x=0;x<BN;x++){const cx=-BEXT+(x+0.5)*BCELL,cz=-BEXT+(z+0.5)*BCELL;if(Math.hypot(cx-k.x,cz-k.z)<0.3)butter[z*BN+x]=Math.min(1.1,butter[z*BN+x]+k.mass*0.6);}
   }
@@ -1474,7 +1511,7 @@ function update(dt){
   // pan position control
   if(S.phase==='flight'){
     if(!ptr){
-      if(S.mode==='gyro'&&ori.seen){const k=1-Math.exp(-dt*10);S.pan.x=lerp(S.pan.x,S.tilt.x*1.35,k);S.pan.z=lerp(S.pan.z,S.tilt.y*1.35,k);}
+      if(S.mode==='gyro'&&hasSensor()){const k=1-Math.exp(-dt*10);S.pan.x=lerp(S.pan.x,S.tilt.x*1.35,k);S.pan.z=lerp(S.pan.z,S.tilt.y*1.35,k);}
       const kx=(keys.ArrowRight?1:0)-(keys.ArrowLeft?1:0),kz=(keys.ArrowDown?1:0)-(keys.ArrowUp?1:0);
       S.pan.x=clamp(S.pan.x+kx*2.6*dt,-1.45,1.45);S.pan.z=clamp(S.pan.z+kz*2.6*dt,-1.45,1.45);
     }
@@ -1506,7 +1543,7 @@ function update(dt){
       if((fl.landed>=0&&(fl.t-fl.landed>0.55||(fl.t-fl.landed>0.3&&CL.speed()<0.2)))||fl.t>4.2)settle();
     }
   }
-  if(S.phase==='cook2'&&S.mode==='gyro'&&ori.seen){
+  if(S.phase==='cook2'&&S.mode==='gyro'&&hasSensor()){
     if(S.tilt.x>0.75){S.plateHold+=dt;if(S.plateHold>0.3){S.plateHold=0;plate();}}else S.plateHold=0;
   }
   if(S.phase==='plating'){S.plateAnim.t+=dt;if(S.plateAnim.t>=S.plateAnim.dur){
@@ -1638,8 +1675,8 @@ async function startGame(){
   AU.init();AU.resume();
   if(S.mode==='gyro'){
     const ok=await askSensors();
-    if(!ok){S.mode='touch';renderMode();toast('Pas de gyroscope ici','var(--butter)','Mode tactile activé');}
-    else calibrate();
+    if(!ok){showSensorHelp();return;}
+    calibrate();
   }
   try{if(navigator.wakeLock)wake=await navigator.wakeLock.request('screen');}catch(e){wake=null;}
   Object.assign(S,{running:true,timeLeft:GAME_TIME,score:0,shown:0,crepes:0,saltos:0,lost:0,bestNote:-1,notes:[],
@@ -1695,7 +1732,9 @@ function renderMode(){
   const g=S.mode==='gyro';
   $('mGyro').setAttribute('aria-pressed',String(g));$('mTouch').setAttribute('aria-pressed',String(!g));
   $('powerRow').hidden=!g;
-  $('modeNote').textContent=g
+  $('modeNote').textContent=g&&IS_BRAVE&&ANDROID
+    ?'Attention : Brave bloque le gyroscope sur Android. Ouvre la page dans Chrome ou Firefox pour jouer en inclinant, ou passe en tactile.'
+    :g
     ?'Tiens le téléphone à plat, comme la poêle. Il se recalibre à chaque louche. Le gyroscope demande une page en HTTPS ; sinon le jeu passe en tactile.'
     :'Au doigt : frotte le beurre, glisse en rond pour étaler, glisse vers le haut pour lancer, fais glisser la poêle sous l\'ombre. Au clavier : B, flèches, Espace, F (maintenir), Entrée.';
   const steps=[
@@ -1725,6 +1764,29 @@ $('sOff').addEventListener('click',()=>{S.sound=false;store.set('lp.sound',false
 $('vOn').addEventListener('click',()=>{S.voice=true;store.set('lp.voice',true);renderToggles();AU.init();say('Beurre !',1);});
 $('vOff').addEventListener('click',()=>{S.voice=false;store.set('lp.voice',false);renderToggles();try{speechSynthesis.cancel();}catch(e){}});
 $('btnPlay').addEventListener('click',startGame);
+
+/* when the browser sends no motion at all (Brave on Android blocks it on purpose) */
+function showSensorHelp(){
+  const url=location.href.split('#')[0];
+  $('shUrl').textContent=url;
+  $('shTitle').textContent=IS_BRAVE?'Brave bloque le gyroscope':'Pas de gyroscope ici';
+  $('shText').textContent=IS_BRAVE
+    ?'Brave coupe volontairement les capteurs de mouvement sur Android, pour la vie privée, et aucun réglage ne permet de les rouvrir. Ouvre Lupercalia dans Chrome, Firefox ou Samsung Internet pour jouer en inclinant le téléphone.'
+    :(location.protocol!=='https:'&&location.hostname!=='localhost')
+      ?'Le gyroscope ne marche que sur une page en HTTPS. Ouvre la version en ligne, ou joue au doigt.'
+      :'Ton navigateur ne transmet pas les mouvements du téléphone. Ouvre la page dans Chrome, Firefox ou Safari, ou joue au doigt.';
+  const ch=$('shChrome');ch.hidden=!ANDROID;
+  if(ANDROID)ch.href='intent://'+url.replace(/^https?:\/\//,'')+'#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url='+encodeURIComponent(url)+';end';
+  $('shCopy').textContent='COPIER LE LIEN';
+  $('sensorHelp').hidden=false;
+}
+$('shCopy').addEventListener('click',()=>{
+  const url=$('shUrl').textContent,done=()=>{$('shCopy').textContent='COPIÉ ✓';};
+  try{navigator.clipboard.writeText(url).then(done,()=>{selectUrl();});}catch(e){selectUrl();}
+});
+function selectUrl(){try{const r=document.createRange();r.selectNodeContents($('shUrl'));const s=getSelection();s.removeAllRanges();s.addRange(r);}catch(e){}}
+$('shTouch').addEventListener('click',()=>{$('sensorHelp').hidden=true;S.mode='touch';renderMode();startGame();});
+$('shBack').addEventListener('click',()=>{$('sensorHelp').hidden=true;});
 
 function demoCrepe(){
   resetBatter();
