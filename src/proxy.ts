@@ -7,17 +7,20 @@ import { NextRequest, NextResponse } from "next/server";
  *   - BASIC_AUTH_PASSWORD : le mot de passe (obligatoire pour activer la protection)
  *   - BASIC_AUTH_USER     : un identifiant (optionnel)
  *
- * Seul l'outil "/broll" et les routes "/api/..." sont proteges.
+ * Seul l'outil "/broll" et les routes "/api/..." sont proteges,
+ * sauf "/api/bille-scores" (classement public du jeu de bille).
  * La page d'accueil "/" et tout le reste restent PUBLICS.
  * La decision est prise dans la fonction (le config.matcher seul n'est pas fiable).
  */
 export function proxy(req: NextRequest) {
   const path = req.nextUrl.pathname;
 
+  // Le classement du jeu de bille (eulst.app/bille) doit rester public.
+  const isPublicApi = path === "/api/bille-scores" || path.startsWith("/api/bille-scores/");
   const isProtected =
     path === "/broll" ||
     path.startsWith("/broll/") ||
-    path.startsWith("/api/");
+    (path.startsWith("/api/") && !isPublicApi);
 
   // Tout ce qui n'est pas l'outil ou son API est public (accueil compris).
   if (!isProtected) return NextResponse.next();

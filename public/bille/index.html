@@ -88,7 +88,7 @@ html,body{height:100%;margin:0;background:var(--ink);color:var(--cream);overflow
 .ptitle{margin:0;font-family:var(--display);font-weight:400;font-size:38px;line-height:.9;letter-spacing:.02em;text-wrap:balance}
 .ptitle.red{color:var(--red)}
 .panel p{margin:0;font-size:14px;line-height:1.45;color:var(--cream)}
-.small{font-size:12px!important;color:var(--muted)!important}
+p.small,span.small{font-size:12px!important;color:var(--muted)!important}
 .gold{color:var(--gold)}
 .row{display:flex;gap:8px}
 .row > *{flex:1}
@@ -202,6 +202,28 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid 
 #banner.boss .b1{color:var(--red);text-shadow:0 4px 0 #3a0f0d,0 8px 0 rgba(0,0,0,.45)}
 #banner .b3{font-family:var(--ui);font-size:13px;color:var(--cream);margin-top:6px;text-shadow:0 2px 0 rgba(0,0,0,.7);animation:fadeUp .4s .55s ease-out backwards}
 .offer .ball{width:40px;height:40px;image-rendering:pixelated}
+/* Fin de partie et classement */
+.score-line{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.score-line b{font-family:var(--display);font-weight:400;font-size:44px;line-height:.85;color:var(--gold);font-variant-numeric:tabular-nums}
+.score-form{display:flex;gap:8px}
+.score-form input{flex:1;min-width:0;font-family:var(--ui);font-size:16px;background:var(--panel-2);color:var(--cream);border:2px solid var(--line);border-radius:6px;padding:8px 10px}
+.score-form .btn{flex:0 0 auto}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.board-head{display:flex;justify-content:space-between;align-items:center}
+.board{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px;counter-reset:rk}
+.board li{display:grid;grid-template-columns:26px minmax(0,1fr) auto 40px;gap:8px;align-items:baseline;padding:4px 6px;border-radius:4px;font-size:14px;counter-increment:rk}
+.board li::before{content:counter(rk);font-family:var(--display);font-size:20px;color:var(--muted)}
+.board li:nth-child(1)::before{color:var(--gold)}
+.board li .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.board li .s{font-family:var(--display);font-size:22px;color:var(--gold);font-variant-numeric:tabular-nums}
+.board li .r{font-size:11px;color:var(--muted);text-align:right}
+.board li.me{background:rgba(242,181,68,.16);outline:1px solid var(--gold)}
+.board li.empty{display:block;color:var(--muted);font-size:13px}
+.board li.empty::before{content:none}
+.board li.extra{counter-increment:none;border-top:1px dashed var(--line);margin-top:4px;padding-top:6px}
+.board li.extra::before{content:attr(data-rank)}
+#ownedList.swap .rb{animation:no .6s ease-in-out infinite;border-color:var(--red)}
+.offer.pending .card{outline:3px solid var(--gold);outline-offset:2px}
 @media (prefers-reduced-motion:reduce){
   .title,.title .ch,.offer,.offer .card,#banner,#banner .ch,.bump,.btn.pulse,.panel,.ledger li,.pw.fire,.rb,#rack.choose .rb{animation:none!important}
 }
@@ -230,11 +252,12 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid 
 
 <section class="screen clear" id="sTitle">
   <div class="title-wrap">
-    <p class="eyebrow">Jeu d'adresse · prototype v0.3</p>
+    <p class="eyebrow">Jeu d'adresse · prototype v0.4</p>
     <h1 class="title" aria-label="Bille Foraine"><span>Bille</span><span>Foraine</span></h1>
     <div class="panel">
-      <p>Penche le téléphone pour rouler la bille jusqu'au <b class="gold">trou doré</b>. Tu as 10 billes pour toute la partie : chaque bille tombée est perdue. Achète des billes à pouvoir entre les manches.</p>
+      <p>Penche le téléphone pour rouler la bille jusqu'au <b class="gold">trou doré</b>. Tu as 10 billes pour toute la partie : chaque bille tombée est perdue. Achète des billes à pouvoir entre les manches, sans dépasser 10.</p>
       <button class="btn big pulse" id="bPlay">Jouer</button>
+      <button class="btn ghost small" id="bScores" type="button">Meilleurs scores</button>
       <p class="status" id="sensorStatus"><i></i><span>Capteurs : touche Jouer pour les activer</span></p>
       <p class="small">Sans capteurs : glisse le doigt pour incliner. Sur ordinateur : souris ou flèches, Espace pour sauter, Maj pour freiner.</p>
     </div>
@@ -258,25 +281,29 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid 
     <div>
       <span class="lab" id="rackLab">Tes billes · 10 / 10</span>
       <div id="ownedList" class="owned-list"></div>
-      <p class="small">Appui long sur une bille : son effet. Touche deux fois : la revendre.</p>
+      <p class="small">Appui long sur une bille : son effet. Touche-la deux fois pour la revendre et faire de la place.</p>
     </div>
     <div class="row"><button class="btn green small" id="bReroll">Relancer $2</button><button class="btn blue small" id="bNext">Manche suivante</button></div>
   </div>
 </section>
 
-<section class="screen" id="sWin" hidden>
+<section class="screen" id="sEnd" hidden>
   <div class="panel">
-    <h2 class="ptitle gold">Partie gagnée !</h2>
-    <p id="winText"></p>
-    <div class="row"><button class="btn ghost small" id="bWinMenu">Menu</button><button class="btn gold small" id="bEndless">Continuer sans fin</button></div>
-  </div>
-</section>
-
-<section class="screen" id="sOver" hidden>
-  <div class="panel">
-    <h2 class="ptitle red">Plus de billes</h2>
-    <p id="overText"></p>
-    <button class="btn big" id="bRetry">Rejouer</button>
+    <h2 class="ptitle" id="endTitle">Plus de billes</h2>
+    <p id="endText"></p>
+    <div class="score-line" id="endScoreLine"><span class="lab">Ton score</span><b id="endScore">0</b><span class="small" id="endDetail"></span></div>
+    <form id="scoreForm" class="score-form" autocomplete="off">
+      <label class="sr" for="playerName">Ton nom</label>
+      <input id="playerName" maxlength="14" placeholder="Ton nom" enterkeyhint="done">
+      <button class="btn gold small" id="bSave" type="submit">Enregistrer</button>
+    </form>
+    <div class="board-head"><span class="lab">Meilleurs scores</span><span class="tag" id="boardSrc">…</span></div>
+    <ol class="board" id="board"></ol>
+    <div class="row wrap" id="endRow">
+      <button class="btn ghost small" id="bEndMenu" type="button">Menu</button>
+      <button class="btn small" id="bRetry" type="button">Rejouer</button>
+      <button class="btn gold small" id="bEndless" type="button" hidden>Continuer sans fin</button>
+    </div>
   </div>
 </section>
 
@@ -303,7 +330,7 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid 
 
 <div id="rotate">Tourne le téléphone<br>en portrait</div>
 
-<script src="levels.js?v=3"></script>
-<script src="game.js?v=3.1"></script>
+<script src="levels.js?v=3.2"></script>
+<script src="game.js?v=3.2"></script>
 </body>
 </html>

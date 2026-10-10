@@ -92,7 +92,7 @@ function ballCanvas(kind, px = 12) {
 /* ---------------- État ---------------- */
 const G = { mode: 'title', paused: false, round: 1, money: 0, shown: 0, rack: [], cur: 0, choosing: false,
   level: LEV.HAND[0], seed: 1, taken: new Set(), fell: false, netUsed: false, roundCoins: 0, offers: [], sold: new Set(),
-  rerollCost: 2, best: 0, combo: 0, comboT: 0, bossReward: false, endless: false };
+  rerollCost: 2, best: 0, combo: 0, comboT: 0, bossReward: false, endless: false, earned: 0, won: 0, runId: '', swapFor: null };
 try { G.best = +localStorage.getItem('bf.best') || 0; } catch (e) {}
 
 const B = { x: 0, y: 0, hz: 0, vx: 0, vy: 0, vz: 0, onGround: true, state: 'roll', sink: null, jumpCD: 0, tpCD: 0, air2: false,
@@ -602,7 +602,7 @@ function stepSink(dt) {
 function onSunk(h) {
   const c = geo.c;
   if (h.goal) {
-    G.mode = 'won';
+    G.mode = 'won'; G.won++;
     spray(h.x, h.y, D, 46, ['#f2b544', '#fff3c4', '#e2483d', '#f3e9d2'], 6, 14, null, Math.PI, 1);
     rings.push({ x: h.x, y: h.y, z: D, t: 0, life: .6, r0: h.R, r1: h.R * 5, gold: true });
     addShake(c * .25); flash('#f2b544', .3, 500);
@@ -619,7 +619,7 @@ function onSunk(h) {
   // la bille est perdue pour de bon
   const lostKind = G.rack[G.cur];
   G.rack.splice(G.cur, 1); sfx.lose(); renderHud(); renderRack(G.cur);
-  if (!G.rack.length) { G.mode = 'over'; setTimeout(showOver, 700); return; }
+  if (!G.rack.length) { G.mode = 'over'; setTimeout(() => showEnd('over'), 700); return; }
   const same = G.rack.indexOf(lostKind);
   G.cur = same >= 0 ? same : Math.min(G.cur, G.rack.length - 1);
   toast(G.rack.length === 1 ? 'Dernière bille !' : `${BALLS[lostKind].name} perdue. Il te reste ${G.rack.length} billes.`);
@@ -666,7 +666,7 @@ function collect(cn) {
   const bonus = has('chain') ? Math.min(G.combo, 3) : 0;
   const val = cn.base + (has('gold') ? 1 : 0) + bonus;
   cn.val = val;
-  G.money += val; G.roundCoins++;
+  G.money += val; G.earned += val; G.roundCoins++;
   sfx.coin(G.combo); buzz(cn.big ? 25 : 8);
   const z = D - cn.h;
   spray(cn.x, cn.y, z, cn.big ? 18 : 10, ['#f2b544', '#fff3c4'], 4, 3);
@@ -1291,7 +1291,7 @@ function banner(a, b, c, boss) {
   if (c) { const b3 = document.createElement('div'); b3.className = 'b3'; b3.textContent = c; d.appendChild(b3); }
   host.appendChild(d);
 }
-const screens = ['#sTitle', '#sCash', '#sShop', '#sOver', '#sSettings', '#sWin'];
+const screens = ['#sTitle', '#sCash', '#sShop', '#sEnd', '#sSettings'];
 function show(id) { for (const s of screens) $(s).hidden = s !== id; hideTip(); }
 function showPlayUi(on) { $('#hud').hidden = !on; $('#rack').hidden = !on; if (!on) { $('#actBtn').hidden = true; $('#chooseHint').hidden = true; } }
 
@@ -1311,6 +1311,7 @@ function newRound() {
 }
 function startRun() {
   G.round = 1; G.money = 0; G.shown = 0; G.rack = Array(MAX_BALLS).fill('plain'); G.cur = 0; G.endless = false;
+  G.earned = 0; G.won = 0; G.runId = Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
   G.seed = (Math.random() * 4294967296) >>> 0;
   newRound();
 }
@@ -1350,24 +1351,19 @@ async function showCash() {
   sfx.win(); buzz(25);
   btn.textContent = 'Encaisser $' + total; btn.disabled = false; btn.classList.add('pulse');
   btn.onclick = () => {
-    btn.onclick = null; G.money += total; G.shown = G.money; sfx.buy();
-    if (G.round === 8 && !G.endless) showWin(); else openShop();
+    btn.onclick = null; G.money += total; G.earned += total; G.shown = G.money; sfx.buy();
+    if (G.round === 8 && !G.endless) showEnd('win'); else openShop();
   };
 }
 $('#cashPanel').addEventListener('pointerdown', e => { if (e.target.id !== 'bCash') cashSkip = true; });
-function showWin() {
-  G.mode = 'win'; showPlayUi(false);
-  if (G.round > G.best) { G.best = G.round; try { localStorage.setItem('bf.best', G.best); } catch (e) {} }
-  $('#winText').textContent = `Les 8 manches sont gagnées, avec ${G.rack.length} bille${G.rack.length > 1 ? 's' : ''} en réserve et $${G.money}. Tu peux continuer : les manches deviennent de plus en plus dures.`;
-  show('#sWin'); flash('#f2b544', .4, 800); sfx.win();
-}
 
-/* ---------------- Boutique ---------------- */
+/* ---------------- Boutique ----------------
+   La réserve ne dépasse jamais 10 billes : pour acheter quand elle est pleine, on retire d'abord une bille (revendue à moitié prix). */
 const price = k => G.bossReward && k !== 'plain' ? 0 : BALLS[k].price;
 const sellPrice = k => Math.max(1, Math.floor(BALLS[k].price / 2));
 function openShop() {
   G.mode = 'shop'; showPlayUi(false); $('#hud').hidden = false;
-  G.rerollCost = 2; G.bossReward = !!G.level.boss;
+  G.rerollCost = 2; G.bossReward = !!G.level.boss; G.swapFor = null; armed = -1;
   genOffers(); renderShop(true); show('#sShop'); renderHud();
   [0, 1, 2].forEach(i => setTimeout(sfx.deal, 140 + i * 110));
 }
@@ -1381,15 +1377,20 @@ function renderShop(deal) {
   $('#shopMoney').textContent = '$' + G.money;
   const note = $('#shopNote');
   const full = G.rack.length >= MAX_BALLS;
-  note.hidden = !(G.bossReward || full);
-  const fullTxt = G.rack.includes('plain') ? 'Ta réserve est pleine : une bille à pouvoir remplacera une bille simple.' : 'Ta réserve est pleine : revends une bille pour en acheter une autre.';
-  note.textContent = G.bossReward ? 'Récompense du boss : une bille à pouvoir offerte.' + (full ? ' ' + fullTxt : '') : fullTxt;
+  let txt = '';
+  if (G.swapFor) txt = `Touche la bille à retirer pour faire de la place à ${BALLS[G.swapFor].name}. Elle est revendue à moitié prix. Touche à nouveau la carte pour annuler.`;
+  else {
+    if (G.bossReward) txt = 'Récompense du boss : une bille à pouvoir offerte. ';
+    if (full) txt += 'Ta réserve est pleine (10 / 10) : pour acheter, tu devras retirer une bille.';
+  }
+  note.hidden = !txt; note.textContent = txt.trim();
   const box = $('#offers'); box.textContent = ''; tiltEls = [];
   G.offers.forEach((k, i) => {
     const pw = BALLS[k], b = document.createElement('button'); b.type = 'button'; b.className = 'offer'; b.dataset.k = k;
     b.style.setProperty('--i', i);
     if (!deal) b.style.animation = 'none';
     if (G.sold.has(k)) b.classList.add('sold');
+    if (G.swapFor === k) b.classList.add('pending');
     if (G.money < price(k)) b.classList.add('poor');
     const tl = document.createElement('div'); tl.className = 'tilt';
     const card = document.createElement('div'); card.className = 'card'; card.style.setProperty('--i', i);
@@ -1403,50 +1404,143 @@ function renderShop(deal) {
     box.appendChild(b); tiltEls.push(tl);
   });
   const own = $('#ownedList'); own.textContent = '';
+  own.classList.toggle('swap', !!G.swapFor);
   G.rack.forEach((k, i) => {
     const b = rackButton(k, i);
     if (i === armed) b.classList.add('armed');
-    bindHold(b, k, () => sellTap(i));
+    bindHold(b, k, () => G.swapFor ? swapOut(i) : sellTap(i));
     own.appendChild(b);
   });
   $('#rackLab').textContent = `Tes billes · ${G.rack.length} / ${MAX_BALLS}`;
   const plain = $('#bPlain'); plain.disabled = G.money < BALLS.plain.price || full;
   const rr = $('#bReroll'); rr.textContent = 'Relancer $' + G.rerollCost; rr.disabled = G.money < G.rerollCost;
 }
+function removeBall(i) {
+  const k = G.rack.splice(i, 1)[0];
+  G.money += sellPrice(k); G.shown = G.money; G.cur = clamp(G.cur, 0, Math.max(0, G.rack.length - 1));
+  return k;
+}
 function sellTap(i) {
   if (armed !== i) {
-    armed = i; clearTimeout(armTimer); armTimer = setTimeout(() => { armed = -1; renderShop(false); }, 2500);
+    armed = i; clearTimeout(armTimer); armTimer = setTimeout(() => { armed = -1; if (G.mode === 'shop') renderShop(false); }, 2500);
     toast(`Touche encore pour revendre ${BALLS[G.rack[i]].name} (+$${sellPrice(G.rack[i])}).`);
     renderShop(false); return;
   }
   if (G.rack.length <= 1) { toast('Garde au moins une bille.'); sfx.no(); return; }
-  const k = G.rack.splice(i, 1)[0]; armed = -1; clearTimeout(armTimer);
-  G.money += sellPrice(k); G.shown = G.money; G.cur = Math.min(G.cur, G.rack.length - 1);
+  armed = -1; clearTimeout(armTimer);
+  const k = removeBall(i);
   toast(`${BALLS[k].name} revendue : +$${sellPrice(k)}.`); sfx.buy();
   renderShop(false); renderHud();
+}
+function swapOut(i) {
+  const want = G.swapFor; G.swapFor = null;
+  const k = removeBall(i);
+  sfx.tick(330);
+  completeBuy(want, document.querySelector(`#offers .offer[data-k="${want}"]`), `${BALLS[k].name} retirée (+$${sellPrice(k)}). `);
 }
 function bumpEl(el) { if (REDUCED) return; el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
 function buy(k, el) {
   if (G.sold.has(k)) return;
-  const cost = price(k);
   const refuse = msg => { toast(msg); sfx.no(); if (el) { el.style.animation = ''; el.classList.remove('no'); void el.offsetWidth; el.classList.add('no'); } };
-  const full = G.rack.length >= MAX_BALLS, swap = full && k !== 'plain' ? G.rack.indexOf('plain') : -1;
-  if (full && swap < 0) return refuse(k === 'plain' ? 'Ta réserve est pleine (10 billes).' : 'Ta réserve est pleine : revends une bille d’abord.');
-  if (G.money < cost) return refuse('Il te manque $' + (cost - G.money) + '.');
-  if (swap >= 0) { G.rack.splice(swap, 1); G.cur = Math.min(G.cur, G.rack.length - 1); }
+  if (G.swapFor === k) { G.swapFor = null; toast('Achat annulé.'); renderShop(false); return; }
+  if (G.money < price(k)) return refuse('Il te manque $' + (price(k) - G.money) + '.');
+  if (G.rack.length >= MAX_BALLS) {
+    if (k === 'plain') return refuse('Ta réserve est pleine (10 billes).');
+    G.swapFor = k; sfx.tick(520); renderShop(false);
+    toast('Réserve pleine : touche la bille à retirer.');
+    return;
+  }
+  completeBuy(k, el, '');
+}
+function completeBuy(k, el, prefix) {
+  const cost = price(k);
   G.money -= cost; G.shown = G.money; G.rack.push(k); sfx.buy(); buzz(15);
   if (k !== 'plain') { G.sold.add(k); if (G.bossReward && cost === 0) G.bossReward = false; }
   if (el) { el.style.animation = ''; el.classList.add('bought'); }
   bumpEl($('#shopMoney')); $('#shopMoney').textContent = '$' + G.money;
-  toast(k === 'plain' ? 'Une bille simple de plus.' : `${BALLS[k].name} ajoutée${swap >= 0 ? ' à la place d’une bille simple' : ''}. Choisis-la au prochain lancer.`);
-  setTimeout(() => { renderShop(false); renderHud(); }, el ? 380 : 0);
+  toast(prefix + (k === 'plain' ? 'Une bille simple de plus.' : `${BALLS[k].name} ajoutée. Choisis-la au prochain lancer.`));
+  setTimeout(() => { if (G.mode === 'shop') renderShop(false); renderHud(); }, el ? 380 : 0);
 }
-function showOver() {
-  if (G.round > G.best) { G.best = G.round; try { localStorage.setItem('bf.best', G.best); } catch (e) {} }
-  showPlayUi(false);
-  $('#overText').textContent = `Ta dernière bille est tombée à la manche ${G.round}, avec $${G.money} en poche. Meilleure manche : ${G.best}.`;
-  show('#sOver');
+
+/* ---------------- Fin de partie & classement ----------------
+   Score = 100 par manche gagnée + tout l'argent gagné pendant la partie (dépensé ou non).
+   Classement partagé via /api/bille-scores ; s'il ne répond pas, on garde un top 10 sur le téléphone. */
+const SCORE_API = '/api/bille-scores';
+const score = () => G.won * 100 + G.earned;
+const esc = s => String(s).replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 14);
+function localScores() { try { return JSON.parse(localStorage.getItem('bf.scores') || '[]'); } catch (e) { return []; } }
+function saveLocal(entry) {
+  const list = localScores().filter(e => e.run !== entry.run);
+  list.push(entry); list.sort((a, b) => b.score - a.score);
+  try { localStorage.setItem('bf.scores', JSON.stringify(list.slice(0, 20))); } catch (e) {}
 }
+async function api(method, body, run) {
+  try {
+    const r = await fetch(SCORE_API + (run ? '?run=' + encodeURIComponent(run) : ''), {
+      method, cache: 'no-store', headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch (e) { return null; }
+}
+function renderBoard(data, online, myRun) {
+  $('#boardSrc').textContent = online ? 'En ligne' : 'Sur ce téléphone';
+  const ol = $('#board'); ol.textContent = '';
+  const top = (data && data.top) || [];
+  if (!top.length) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = 'Aucun score pour l’instant. Sois le premier !'; ol.appendChild(li); return; }
+  const row = (e, cls, rank) => {
+    const li = document.createElement('li'); if (cls) li.className = cls; if (rank) li.dataset.rank = rank;
+    const n = document.createElement('span'); n.className = 'n'; n.textContent = e.name || 'Anonyme';
+    const s = document.createElement('span'); s.className = 's'; s.textContent = e.score;
+    const r = document.createElement('span'); r.className = 'r'; r.textContent = 'M' + e.round;
+    li.append(n, s, r); ol.appendChild(li);
+  };
+  top.slice(0, 10).forEach(e => row(e, e.run === myRun ? 'me' : ''));
+  if (myRun && data.rank && data.rank > 10 && data.me) row(data.me, 'me extra', data.rank);
+}
+async function loadBoard(myRun) {
+  $('#boardSrc').textContent = '…';
+  const data = await api('GET', null, myRun);
+  if (data && data.top) { renderBoard(data, true, myRun); return; }
+  const list = localScores(), idx = list.findIndex(e => e.run === myRun);
+  renderBoard({ top: list.slice(0, 10), rank: idx >= 0 ? idx + 1 : null, me: list[idx] }, false, myRun);
+}
+let endKind = 'over';
+function showEnd(kind) {
+  endKind = kind;
+  G.mode = kind === 'view' ? G.mode : kind;
+  if (kind !== 'view') { showPlayUi(false); if (G.round > G.best) { G.best = G.round; try { localStorage.setItem('bf.best', G.best); } catch (e) {} } }
+  const view = kind === 'view';
+  $('#endTitle').textContent = view ? 'Meilleurs scores' : kind === 'win' ? 'Partie gagnée !' : 'Plus de billes';
+  $('#endTitle').className = 'ptitle ' + (kind === 'win' ? 'gold' : kind === 'over' ? 'red' : '');
+  $('#endText').hidden = view;
+  $('#endText').textContent = kind === 'win'
+    ? `Les 8 manches sont gagnées, avec ${G.rack.length} bille${G.rack.length > 1 ? 's' : ''} en réserve. Tu peux continuer : les manches deviennent de plus en plus dures.`
+    : `Ta dernière bille est tombée à la manche ${G.round}.`;
+  $('#endScoreLine').hidden = view; $('#scoreForm').hidden = view;
+  $('#endScore').textContent = score();
+  $('#endDetail').textContent = `${G.won} manche${G.won > 1 ? 's' : ''} × 100 + $${G.earned} gagnés`;
+  try { $('#playerName').value = localStorage.getItem('bf.name') || ''; } catch (e) {}
+  const save = $('#bSave'); save.disabled = false; save.textContent = 'Enregistrer';
+  $('#bRetry').textContent = view ? 'Jouer' : 'Rejouer';
+  $('#bEndMenu').textContent = view ? 'Retour' : 'Menu';
+  $('#bEndless').hidden = kind !== 'win';
+  show('#sEnd');
+  if (kind === 'win') { flash('#f2b544', .4, 800); sfx.win(); }
+  loadBoard(view ? null : G.runId);
+}
+$('#scoreForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const name = esc($('#playerName').value) || 'Anonyme';
+  try { localStorage.setItem('bf.name', name); } catch (er) {}
+  const entry = { run: G.runId, name, score: score(), round: G.round, won: G.won };
+  const save = $('#bSave'); save.disabled = true; save.textContent = '…';
+  saveLocal({ ...entry, at: Date.now() });
+  const res = await api('POST', entry);
+  save.textContent = 'Enregistré';
+  if (res && res.top) { renderBoard(res, true, G.runId); toast(res.rank ? `Tu es ${res.rank === 1 ? '1er' : res.rank + 'e'} du classement.` : 'Score enregistré.'); }
+  else { await loadBoard(G.runId); toast('Classement en ligne indisponible : score gardé sur ce téléphone.'); }
+  sfx.buy();
+});
 
 /* ---------------- Pause & réglages ---------------- */
 function openSettings() {
@@ -1485,7 +1579,8 @@ $('#bPlay').addEventListener('click', () => begin(startRun));
 $('#bRetry').addEventListener('click', () => begin(startRun));
 $('#bNext').addEventListener('click', () => { sfx.tick(); armed = -1; G.round++; newRound(); });
 $('#bEndless').addEventListener('click', () => { G.endless = true; openShop(); });
-$('#bWinMenu').addEventListener('click', () => $('#bQuit').click());
+$('#bEndMenu').addEventListener('click', () => { if (endKind === 'view') show('#sTitle'); else $('#bQuit').click(); });
+$('#bScores').addEventListener('click', () => { sfx.tick(); showEnd('view'); });
 $('#bPlain').addEventListener('click', () => buy('plain', null));
 $('#bReroll').addEventListener('click', () => {
   if (G.money < G.rerollCost) return;
@@ -1498,7 +1593,7 @@ $('#bSettings').addEventListener('click', () => { sfx.tick(); openSettings(); })
 $('#bSound').addEventListener('click', toggleSound);
 $('#bResume').addEventListener('click', () => {
   sfx.tick();
-  const back = { play: null, shop: '#sShop', title: '#sTitle', over: '#sOver', cash: '#sCash', win: '#sWin' }[G.mode];
+  const back = { play: null, shop: '#sShop', title: '#sTitle', over: '#sEnd', cash: '#sCash', win: '#sEnd' }[G.mode];
   if (G.mode === 'play') G.paused = false;
   show(back || null);
 });
