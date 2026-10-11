@@ -872,7 +872,7 @@ function addToStack(kind){
   const c=mkCanvas(G,G);c.getContext('2d').drawImage(S.flipped?cvA:cvB,0,0);
   const t=nearest(new THREE.CanvasTexture(c));t.repeat.set(0.975,0.975);t.offset.set(0.0125,0.0125);
   const half=kind==='fold'||kind==='torn';
-  const top=new THREE.Mesh(new THREE.CircleGeometry(0.62,24,0,half?Math.PI:Math.PI*2),new THREE.MeshPhongMaterial({map:t,flatShading:true,shininess:8}));
+  const top=new THREE.Mesh(new THREE.CircleGeometry(0.62,24,0,half?Math.PI:Math.PI*2),new THREE.MeshPhongMaterial({map:t,flatShading:true,shininess:8,alphaTest:0.5}));
   top.rotation.x=-Math.PI/2;
   const g=new THREE.Group();g.add(top);
   const side=new THREE.Mesh(new THREE.CylinderGeometry(0.62,0.62,0.02,24,1,true,0,half?Math.PI:Math.PI*2),new THREE.MeshPhongMaterial({color:0xc28a48,flatShading:true,side:THREE.DoubleSide}));
