@@ -1,0 +1,631 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Luciole</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Nuit d'été : un seul écran plein, la lueur de la luciole au centre, tout le reste en retrait. Thème sombre unique, voulu. */
+:root{
+  --night:#0d1020;
+  --night-2:#171b33;
+  --ink:#ece8da;
+  --dim:#8d91ab;
+  --glow:#ffc65c;
+  --glow-soft:rgba(255,198,92,.18);
+  --miss:#ff8a7a;
+  --display:"Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  background:radial-gradient(120% 80% at 50% 110%, var(--night-2) 0%, var(--night) 60%) fixed, var(--night);
+  color:var(--ink);
+  font:16px/1.5 var(--display);
+  -webkit-tap-highlight-color:transparent;
+  overscroll-behavior:none;
+}
+#app{
+  height:100%;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  padding-left:max(16px, env(safe-area-inset-left,0px));
+  padding-right:max(16px, env(safe-area-inset-right,0px));
+}
+.screen{height:100%;display:flex;flex-direction:column}
+[hidden]{display:none!important}
+
+/* Intro */
+#intro{justify-content:center;overflow-y:auto}
+.intro-inner{max-width:30rem;margin:0 auto;padding-block:32px;display:flex;flex-direction:column;gap:20px}
+.eyebrow{margin:0;font:500 12px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+h1{margin:0;font-size:clamp(56px,16vw,88px);line-height:.9;font-weight:700;letter-spacing:-.03em;color:var(--glow);
+  text-shadow:0 0 28px rgba(255,198,92,.45)}
+.lede{margin:0;font-size:20px;line-height:1.35;text-wrap:balance}
+.how{margin:0;padding:0;list-style:none;display:grid;gap:12px;counter-reset:s}
+.how li{display:grid;grid-template-columns:28px 1fr;gap:10px;color:var(--ink)}
+.how li::before{counter-increment:s;content:counter(s);font:500 13px/24px var(--mono);color:var(--glow);
+  border:1px solid rgba(255,198,92,.4);border-radius:50%;width:24px;height:24px;text-align:center}
+.how b{font-weight:700}
+.fine{margin:0;font:400 12.5px/1.5 var(--mono);color:var(--dim)}
+button{font:inherit;color:inherit;cursor:pointer}
+.primary{
+  appearance:none;border:0;border-radius:999px;padding:18px 28px;
+  background:var(--glow);color:var(--night);font-weight:700;font-size:19px;
+  box-shadow:0 0 0 6px var(--glow-soft), 0 0 40px rgba(255,198,92,.35);
+}
+button:focus-visible,#stage:focus-visible{outline:2px solid var(--glow);outline-offset:3px}
+
+/* Jeu */
+.hud{display:flex;justify-content:space-between;align-items:baseline;padding-block:14px;
+  font:500 15px/1 var(--mono);font-variant-numeric:tabular-nums;color:var(--dim)}
+#count{color:var(--ink);font-size:18px}
+#stage{flex:1;min-height:0;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;
+  touch-action:none;user-select:none;-webkit-user-select:none;border-radius:28px}
+.orb{
+  --i:0;
+  width:44vmin;height:44vmin;max-width:260px;max-height:260px;border-radius:50%;
+  background:radial-gradient(circle, rgba(255,214,130,calc(.15 + var(--i)*.85)) 0%, rgba(255,198,92,calc(var(--i)*.35)) 28%, transparent 68%);
+  transform:scale(calc(.7 + var(--i)*.4));
+  transition:transform .25s ease-out;
+}
+.orb.pulse{animation:pulse .18s ease-out}
+.orb.locked{background:radial-gradient(circle, #fff3d1 0%, rgba(255,198,92,.7) 30%, transparent 70%)}
+.orb.caught{animation:caught 1.2s ease-out}
+.orb.miss{animation:miss .35s ease-out}
+@keyframes pulse{0%{filter:brightness(1.8)}100%{filter:brightness(1)}}
+@keyframes caught{0%{transform:scale(1.2);filter:brightness(2.2)}100%{transform:scale(.6);filter:brightness(.6)}}
+@keyframes miss{0%,100%{translate:0}30%{translate:-10px}60%{translate:8px}}
+#status{margin:0;min-height:3em;max-width:22rem;text-align:center;font-size:22px;line-height:1.3;text-wrap:balance}
+#status.hot{color:var(--glow)}
+#radar{width:min(100%,320px);height:auto;aspect-ratio:3/2;max-width:100%}
+.controls{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;padding-block:14px}
+.controls button{appearance:none;background:transparent;border:1px solid rgba(141,145,171,.4);border-radius:999px;padding:10px 16px;
+  font:500 13px/1 var(--mono);color:var(--dim)}
+.controls button[aria-pressed="true"]{color:var(--glow);border-color:rgba(255,198,92,.6)}
+
+/* Fin */
+#end{justify-content:center;align-items:flex-start;max-width:30rem;margin:0 auto;gap:16px}
+#end h2{margin:0;font-size:44px;line-height:1;color:var(--glow)}
+#end p{margin:0;font-size:20px}
+#endBest{font:400 14px/1.4 var(--mono)!important;color:var(--dim)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+@media (prefers-reduced-motion: reduce){
+  .orb,.orb.pulse,.orb.caught,.orb.miss{animation:none;transition:none}
+}
+</style>
+</head>
+<body>
+<main id="app">
+
+  <section id="intro" class="screen">
+    <div class="intro-inner">
+      <p class="eyebrow">Prototype · jeu sonore</p>
+      <h1>Luciole</h1>
+      <p class="lede">Sept lucioles se cachent autour de toi. Tu ne les vois pas&nbsp;: tu les entends.</p>
+      <ol class="how">
+        <li><span>Mets des <b>écouteurs</b>. Le son se place à gauche, à droite, devant ou derrière.</span></li>
+        <li><span>Tiens le téléphone comme une <b>télécommande</b>, écran vers le ciel, et vise avec le haut du téléphone.</span></li>
+        <li><span>Plus <b>aigu</b>&nbsp;: la luciole est plus haut. Plus <b>grave</b>&nbsp;: plus bas. Plus les bips sont <b>rapides</b>, plus tu es proche.</span></li>
+        <li><span>Quand ça <b>scintille</b>, donne un coup sec du poignet, ou touche l'écran.</span></li>
+      </ol>
+      <button id="startBtn" class="primary">Commencer</button>
+      <p class="fine">Appui long sur l'écran&nbsp;: recentrer droit devant.<br>Le gyroscope n'est accessible qu'en HTTPS. Sur ordinateur&nbsp;: flèches pour viser, espace pour attraper.</p>
+    </div>
+  </section>
+
+  <section id="game" class="screen" hidden>
+    <header class="hud"><span id="count">0 / 7</span><span id="clock">0:00</span></header>
+    <div id="stage" role="button" tabindex="0" aria-label="Zone de jeu. Touche pour attraper la luciole, appui long pour recentrer.">
+      <div class="orb" id="orb"></div>
+      <p id="status">Écoute…</p>
+      <canvas id="radar" width="600" height="400" hidden aria-hidden="true"></canvas>
+    </div>
+    <footer class="controls">
+      <button id="radarBtn" aria-pressed="false">Radar</button>
+      <button id="voiceBtn" aria-pressed="true">Voix</button>
+      <button id="recenterBtn">Recentrer</button>
+      <button id="quitBtn">Quitter</button>
+    </footer>
+  </section>
+
+  <section id="end" class="screen" hidden>
+    <h2>Toutes attrapées</h2>
+    <p id="endTime"></p>
+    <p id="endBest"></p>
+    <button id="againBtn" class="primary">Rejouer</button>
+  </section>
+
+  <div id="live" class="sr" aria-live="polite"></div>
+</main>
+
+<script>
+(() => {
+'use strict';
+
+/* ---------- Réglages ---------- */
+const TOTAL = 7;          // lucioles par partie
+const LOCK = 11;          // degrés : tolérance d'alignement
+const FLICK = 360;        // deg/s : seuil du coup de poignet
+const CATCH_LATCH = 380;  // ms : on accepte le coup si on était aligné juste avant
+const PAD = [110, 164.81, 220, 261.63, 329.63, 392, 440, 523.25]; // la mineur pentatonique
+
+/* ---------- Utilitaires ---------- */
+const $ = s => document.querySelector(s);
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const wrap = a => ((a + 180) % 360 + 360) % 360 - 180;
+const rad = d => d * Math.PI / 180, deg = r => r * 180 / Math.PI;
+const rand = (a, b) => a + Math.random() * (b - a);
+function dir(yaw, pitch) {
+  const y = rad(yaw), p = rad(pitch);
+  return [Math.sin(y) * Math.cos(p), Math.sin(p), -Math.cos(y) * Math.cos(p)];
+}
+function angleBetween(a, b) {
+  const u = dir(a.yaw, a.pitch), v = dir(b.yaw, b.pitch);
+  return deg(Math.acos(clamp(u[0]*v[0] + u[1]*v[1] + u[2]*v[2], -1, 1)));
+}
+const vibrate = p => { try { navigator.vibrate && navigator.vibrate(p); } catch (e) {} };
+function fmt(ms) {
+  const s = Math.round(ms / 1000), m = Math.floor(s / 60);
+  return m + ':' + String(s % 60).padStart(2, '0');
+}
+function fmtSpoken(ms) {
+  const s = Math.round(ms / 1000), m = Math.floor(s / 60), r = s % 60;
+  return (m ? m + (m > 1 ? ' minutes ' : ' minute ') : '') + r + (r > 1 ? ' secondes' : ' seconde');
+}
+
+/* ---------- État ---------- */
+const S = {
+  running: false, between: false, mode: 'gyro',
+  rawYaw: 0, rawPitch: 0, yaw0: 0, pitch0: 0, hasOrientation: false,
+  yaw: 0, pitch: 0, aimYaw: 0, aimPitch: 0,
+  target: { yaw: 0, pitch: 0, phase: 0 },
+  err: 180, aligned: false, lastAligned: -1e9, lastFlick: 0, lastMiss: 0,
+  caught: 0, tStart: 0, voice: true, radar: false,
+  nextBlip: 0, keys: {}, lastStatus: '', lastClock: ''
+};
+
+/* ---------- Audio ---------- */
+let ctx, master, panner, blipFilter, shimGain, delaySend, padBus, padFilter;
+let padVoices = [];
+
+function initAudio() {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  ctx = new AC();
+  const comp = ctx.createDynamicsCompressor();
+  master = ctx.createGain(); master.gain.value = 0.9;
+  master.connect(comp); comp.connect(ctx.destination);
+
+  // écho pour les scintillements
+  const delay = ctx.createDelay(1); delay.delayTime.value = 0.23;
+  const fb = ctx.createGain(); fb.gain.value = 0.38;
+  const wet = ctx.createGain(); wet.gain.value = 0.45;
+  delaySend = ctx.createGain();
+  delaySend.connect(delay); delay.connect(fb); fb.connect(delay); delay.connect(wet); wet.connect(master);
+
+  // la luciole : filtre -> spatialisation HRTF
+  panner = ctx.createPanner();
+  panner.panningModel = 'HRTF';
+  panner.distanceModel = 'linear';
+  panner.rolloffFactor = 0;
+  blipFilter = ctx.createBiquadFilter();
+  blipFilter.type = 'lowpass'; blipFilter.frequency.value = 4000; blipFilter.Q.value = 0.7;
+  blipFilter.connect(panner); panner.connect(master);
+
+  // scintillement quand on est aligné
+  shimGain = ctx.createGain(); shimGain.gain.value = 0;
+  const trem = ctx.createGain(); trem.gain.value = 0.5;
+  const lfo = ctx.createOscillator(); lfo.frequency.value = 7;
+  const lfoG = ctx.createGain(); lfoG.gain.value = 0.5;
+  lfo.connect(lfoG); lfoG.connect(trem.gain); lfo.start();
+  [[1318.5, .5], [1975.5, .3], [2637, .2]].forEach(([f, v]) => {
+    const o = ctx.createOscillator(); o.frequency.value = f;
+    const g = ctx.createGain(); g.gain.value = v;
+    o.connect(g); g.connect(trem); o.start();
+  });
+  trem.connect(shimGain); shimGain.connect(master); shimGain.connect(delaySend);
+
+  // nappe qui s'enrichit à chaque capture
+  padFilter = ctx.createBiquadFilter(); padFilter.type = 'lowpass'; padFilter.frequency.value = 900;
+  padBus = ctx.createGain(); padBus.connect(padFilter); padFilter.connect(master);
+  const plfo = ctx.createOscillator(); plfo.frequency.value = 0.07;
+  const plg = ctx.createGain(); plg.gain.value = 400;
+  plfo.connect(plg); plg.connect(padFilter.frequency); plfo.start();
+}
+
+function setPanner(x, y, z) {
+  const t = ctx.currentTime;
+  if (panner.positionX) {
+    panner.positionX.setTargetAtTime(x, t, 0.03);
+    panner.positionY.setTargetAtTime(y, t, 0.03);
+    panner.positionZ.setTargetAtTime(z, t, 0.03);
+  } else panner.setPosition(x, y, z);
+}
+
+function blip(t, f, vol) {
+  const o = ctx.createOscillator(); o.type = 'triangle';
+  o.frequency.setValueAtTime(f * 0.9, t);
+  o.frequency.exponentialRampToValueAtTime(f, t + 0.035);
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.006);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.13);
+  o.connect(g); g.connect(blipFilter);
+  o.start(t); o.stop(t + 0.16);
+  const delayMs = Math.max(0, (t - ctx.currentTime) * 1000);
+  setTimeout(() => { orb.classList.remove('pulse'); void orb.offsetWidth; orb.classList.add('pulse'); }, delayMs);
+}
+
+function note(t, f, dur, vol, type = 'sine', wet = true) {
+  const o = ctx.createOscillator(); o.type = type; o.frequency.value = f;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(master); if (wet) g.connect(delaySend);
+  o.start(t); o.stop(t + dur + 0.05);
+}
+
+function arpeggio() {
+  const t = ctx.currentTime + 0.02;
+  [0, 3, 5, 7, 10, 12, 15].forEach((st, i) => note(t + i * 0.07, 660 * Math.pow(2, st / 12), 0.5, 0.22));
+}
+
+function missSound() {
+  const t = ctx.currentTime;
+  const len = Math.floor(ctx.sampleRate * 0.18);
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+  const src = ctx.createBufferSource(); src.buffer = buf;
+  const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 320;
+  const g = ctx.createGain(); g.gain.value = 0.7;
+  src.connect(lp); lp.connect(g); g.connect(master); src.start(t);
+}
+
+function recenterSound() {
+  const t = ctx.currentTime;
+  note(t, 523.25, 0.18, 0.15, 'sine', false);
+  note(t + 0.1, 784, 0.25, 0.15, 'sine', false);
+}
+
+function padNote(f) {
+  const t = ctx.currentTime;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.03, t + 3);
+  const a = ctx.createOscillator(); a.type = 'sine'; a.frequency.value = f;
+  const b = ctx.createOscillator(); b.type = 'triangle'; b.frequency.value = f; b.detune.value = 6;
+  a.connect(g); b.connect(g); g.connect(padBus);
+  a.start(t); b.start(t);
+  padVoices.push({ g, oscs: [a, b] });
+}
+
+function clearPad() {
+  const t = ctx.currentTime;
+  padVoices.forEach(v => {
+    v.g.gain.cancelScheduledValues(t);
+    v.g.gain.setTargetAtTime(0.0001, t, 0.4);
+    v.oscs.forEach(o => o.stop(t + 2));
+  });
+  padVoices = [];
+}
+
+function shimTo(v) { shimGain.gain.setTargetAtTime(v, ctx.currentTime, 0.06); }
+
+/* ---------- Voix ---------- */
+const live = $('#live');
+function say(txt) {
+  live.textContent = txt;
+  if (!S.voice || !('speechSynthesis' in window)) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(txt);
+    u.lang = 'fr-FR'; u.rate = 1.05; u.volume = 0.9;
+    speechSynthesis.speak(u);
+  } catch (e) {}
+}
+
+/* ---------- Capteurs ---------- */
+let listening = false;
+function onOrientation(e) {
+  if (e.alpha == null || e.beta == null) return;
+  S.hasOrientation = true;
+  S.rawYaw = -e.alpha;   // positif = tourner vers la droite
+  S.rawPitch = e.beta;   // positif = haut du téléphone relevé
+}
+function onMotion(e) {
+  if (!S.running || S.between) return;
+  const r = e.rotationRate;
+  let mag = 0;
+  if (r && r.alpha != null) mag = Math.hypot(r.alpha, r.beta, r.gamma);
+  else if (e.acceleration && e.acceleration.x != null) {
+    const a = e.acceleration; mag = Math.hypot(a.x, a.y, a.z) * 25;
+  }
+  const now = performance.now();
+  if (mag > FLICK && now - S.lastFlick > 650) { S.lastFlick = now; attempt(); }
+}
+function listen() {
+  if (listening) return;
+  listening = true;
+  window.addEventListener('deviceorientation', onOrientation);
+  window.addEventListener('devicemotion', onMotion);
+}
+
+function recenter(announce) {
+  if (S.mode === 'gyro') { S.yaw0 = S.rawYaw; S.pitch0 = S.rawPitch; }
+  else { S.aimYaw = 0; S.aimPitch = 0; }
+  S.yaw = 0; S.pitch = 0;
+  if (announce) { recenterSound(); say('Recentré.'); }
+}
+
+/* ---------- Partie ---------- */
+const orb = $('#orb'), statusEl = $('#status'), countEl = $('#count'), clockEl = $('#clock');
+let wakeLock = null;
+
+async function start() {
+  if (!ctx) initAudio();
+  ctx.resume();
+  // débloque la synthèse vocale sur iOS (doit partir du geste)
+  try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch (e) {}
+
+  const reqs = [];
+  if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function')
+    reqs.push(DeviceOrientationEvent.requestPermission());
+  if (window.DeviceMotionEvent && typeof DeviceMotionEvent.requestPermission === 'function')
+    reqs.push(DeviceMotionEvent.requestPermission());
+  try { await Promise.all(reqs); } catch (e) {}
+  listen();
+
+  try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {}
+
+  // attend les premières mesures du gyroscope
+  const t0 = performance.now();
+  while (!S.hasOrientation && performance.now() - t0 < 1200) await new Promise(r => setTimeout(r, 60));
+  S.mode = S.hasOrientation ? 'gyro' : 'touch';
+
+  $('#intro').hidden = true; $('#end').hidden = true; $('#game').hidden = false;
+  $('#stage').focus({ preventScroll: true });
+
+  clearPad();
+  padNote(PAD[0]);
+  S.caught = 0; S.between = true; S.running = true;
+  countEl.textContent = '0 / ' + TOTAL;
+  recenter(false);
+
+  if (S.mode === 'gyro') say('Pointe droit devant toi. Écoute bien.');
+  else say('Gyroscope indisponible. Glisse le doigt pour viser.');
+  setStatus(S.mode === 'gyro' ? 'Pointe droit devant toi…' : 'Glisse le doigt pour viser');
+
+  setTimeout(() => { S.tStart = performance.now(); spawn(); }, 1800);
+}
+
+function spawn() {
+  let y, p, tries = 0;
+  do {
+    y = rand(-130, 130); p = rand(-12, 42); tries++;
+  } while (angleBetween({ yaw: y, pitch: p }, { yaw: S.yaw, pitch: S.pitch }) < 65 && tries < 40);
+  S.target = { yaw: y, pitch: p, phase: Math.random() * 6.28 };
+  S.nextBlip = ctx.currentTime + 0.05;
+  S.between = false;
+}
+
+function attempt() {
+  if (!S.running || S.between) return;
+  const now = performance.now();
+  if (now - S.lastAligned < CATCH_LATCH) caught();
+  else if (now - S.lastMiss > 400) {
+    S.lastMiss = now;
+    missSound(); vibrate(40);
+    orb.classList.remove('miss'); void orb.offsetWidth; orb.classList.add('miss');
+  }
+}
+
+function caught() {
+  S.caught++; S.between = true; S.aligned = false;
+  shimTo(0); arpeggio(); vibrate([20, 40, 20]);
+  padNote(PAD[Math.min(S.caught, PAD.length - 1)]);
+  orb.classList.remove('caught', 'locked'); void orb.offsetWidth; orb.classList.add('caught');
+  countEl.textContent = S.caught + ' / ' + TOTAL;
+
+  if (S.caught >= TOTAL) { finish(); return; }
+  const left = TOTAL - S.caught;
+  say('Attrapée. Encore ' + left + '.');
+  setStatus('Attrapée ! Encore ' + left);
+  setTimeout(spawn, 1500);
+}
+
+function finish() {
+  S.running = false;
+  const total = performance.now() - S.tStart;
+  let best = null;
+  try {
+    best = Number(localStorage.getItem('luciole-best')) || null;
+    if (!best || total < best) { localStorage.setItem('luciole-best', String(Math.round(total))); }
+  } catch (e) {}
+  const record = !best || total < best;
+  say('Bravo. Sept lucioles en ' + fmtSpoken(total) + (record ? '. Nouveau record.' : '.'));
+  $('#endTime').textContent = TOTAL + ' lucioles en ' + fmt(total);
+  $('#endBest').textContent = record ? 'Nouveau record' : 'Record : ' + fmt(best);
+  setTimeout(() => { $('#game').hidden = true; $('#end').hidden = false; $('#againBtn').focus(); }, 1600);
+}
+
+function quit() {
+  S.running = false; S.between = true;
+  if (ctx) { shimTo(0); clearPad(); }
+  try { speechSynthesis.cancel(); } catch (e) {}
+  if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
+  $('#game').hidden = true; $('#end').hidden = true; $('#intro').hidden = false;
+}
+
+function setStatus(txt, hot) {
+  if (txt === S.lastStatus) return;
+  S.lastStatus = txt;
+  statusEl.textContent = txt;
+  statusEl.classList.toggle('hot', !!hot);
+}
+
+/* ---------- Boucle ---------- */
+let lastT = performance.now();
+function tick(now) {
+  const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
+
+  if (S.running) {
+    // visée
+    if (S.mode === 'gyro') {
+      const ty = wrap(S.rawYaw - S.yaw0), tp = clamp(S.rawPitch - S.pitch0, -85, 85);
+      S.yaw = wrap(S.yaw + wrap(ty - S.yaw) * 0.4);
+      S.pitch += (tp - S.pitch) * 0.4;
+    } else {
+      S.yaw = wrap(S.aimYaw); S.pitch = clamp(S.aimPitch, -85, 85);
+    }
+    // flèches du clavier, dans tous les modes
+    const k = S.keys, sp = 90 * dt;
+    if (k.ArrowLeft) S.yaw0 += sp, S.aimYaw -= sp;
+    if (k.ArrowRight) S.yaw0 -= sp, S.aimYaw += sp;
+    if (k.ArrowUp) S.pitch0 -= sp, S.aimPitch += sp;
+    if (k.ArrowDown) S.pitch0 += sp, S.aimPitch -= sp;
+
+    if (!S.between) {
+      // la luciole dérive un peu plus à chaque capture
+      const drift = S.caught * 1.6;
+      S.target.yaw = wrap(S.target.yaw + Math.sin(now / 1000 * 0.35 + S.target.phase) * drift * dt);
+      S.target.pitch = clamp(S.target.pitch + Math.cos(now / 1000 * 0.27 + S.target.phase) * drift * 0.5 * dt, -15, 50);
+
+      const aim = { yaw: S.yaw, pitch: S.pitch };
+      S.err = angleBetween(aim, S.target);
+      const dYaw = wrap(S.target.yaw - S.yaw);
+      const dPitch = S.target.pitch - S.pitch;
+      const e = S.err / 180;
+
+      // spatialisation : la luciole est placée par rapport à là où tu vises
+      const x = Math.sin(rad(dYaw)) * Math.cos(rad(dPitch));
+      const y = Math.sin(rad(dPitch));
+      const z = -Math.cos(rad(dYaw)) * Math.cos(rad(dPitch));
+      setPanner(x * 2, y * 2, z * 2);
+
+      // plus loin = plus étouffé, derrière = encore plus
+      let cutoff = 600 + 7000 * Math.pow(1 - e, 1.5);
+      if (Math.cos(rad(dYaw)) < 0) cutoff *= 0.55;
+      blipFilter.frequency.setTargetAtTime(cutoff, ctx.currentTime, 0.05);
+
+      // alignement
+      const wasAligned = S.aligned;
+      S.aligned = S.err < LOCK;
+      if (S.aligned) S.lastAligned = now;
+      if (S.aligned && !wasAligned) { shimTo(0.09); vibrate(15); orb.classList.add('locked'); }
+      if (!S.aligned && wasAligned) { shimTo(0); orb.classList.remove('locked'); }
+
+      // bips : hauteur = où est la luciole par rapport à ta visée, cadence = proximité
+      const f = 740 * Math.pow(2, clamp(dPitch, -60, 60) / 45);
+      const interval = S.aligned ? 0.07 : 0.08 + 0.85 * Math.pow(e, 0.8);
+      const vol = 0.22 + 0.2 * (1 - e);
+      if (S.nextBlip < ctx.currentTime) S.nextBlip = ctx.currentTime + 0.01;
+      while (S.nextBlip < ctx.currentTime + 0.1) { blip(S.nextBlip, f, vol); S.nextBlip += interval; }
+
+      orb.style.setProperty('--i', (1 - e).toFixed(3));
+
+      if (S.aligned) setStatus('Elle est là : coup de poignet !', true);
+      else if (S.err > 110) setStatus('Elle est derrière toi');
+      else if (S.err > 50) setStatus('Cherche…');
+      else if (S.err > 25) setStatus('Tu te rapproches');
+      else setStatus('Tout près', true);
+
+      if (S.radar) drawRadar(dYaw, dPitch);
+    }
+
+    if (S.tStart) {
+      const c = fmt(now - S.tStart);
+      if (c !== S.lastClock) { S.lastClock = c; clockEl.textContent = c; }
+    }
+  }
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+/* ---------- Radar (aide visuelle pour tester) ---------- */
+const radar = $('#radar'), rc = radar.getContext('2d');
+function drawRadar(dYaw, dPitch) {
+  const W = radar.width, H = radar.height, cx = W / 2, cy = H / 2;
+  const sx = (W / 2 - 20) / 180, sy = (H / 2 - 20) / 90;
+  rc.clearRect(0, 0, W, H);
+  rc.strokeStyle = 'rgba(141,145,171,.35)'; rc.lineWidth = 2;
+  rc.strokeRect(20, 20, W - 40, H - 40);
+  rc.beginPath(); rc.moveTo(cx, 20); rc.lineTo(cx, H - 20); rc.moveTo(20, cy); rc.lineTo(W - 20, cy); rc.stroke();
+  rc.fillStyle = 'rgba(141,145,171,.8)'; rc.font = '22px "IBM Plex Mono", monospace';
+  rc.fillText('-180°', 24, H - 28); rc.textAlign = 'right'; rc.fillText('+180°', W - 24, H - 28); rc.textAlign = 'left';
+  // zone d'alignement
+  rc.strokeStyle = S.aligned ? '#ffc65c' : 'rgba(236,232,218,.6)';
+  rc.beginPath(); rc.ellipse(cx, cy, LOCK * sx, LOCK * sy, 0, 0, Math.PI * 2); rc.stroke();
+  // luciole
+  const px = cx + clamp(dYaw, -180, 180) * sx, py = cy - clamp(dPitch, -90, 90) * sy;
+  const g = rc.createRadialGradient(px, py, 0, px, py, 26);
+  g.addColorStop(0, 'rgba(255,214,130,1)'); g.addColorStop(1, 'rgba(255,198,92,0)');
+  rc.fillStyle = g; rc.beginPath(); rc.arc(px, py, 26, 0, Math.PI * 2); rc.fill();
+}
+
+/* ---------- Entrées ---------- */
+const stage = $('#stage');
+let pd = null, longTimer = null;
+stage.addEventListener('pointerdown', e => {
+  pd = { x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, drag: false, long: false };
+  clearTimeout(longTimer);
+  longTimer = setTimeout(() => { if (pd && !pd.drag) { pd.long = true; recenter(true); } }, 700);
+});
+stage.addEventListener('pointermove', e => {
+  if (!pd) return;
+  if (Math.hypot(e.clientX - pd.x, e.clientY - pd.y) > 10) { pd.drag = true; clearTimeout(longTimer); }
+  if (pd.drag && S.mode === 'touch') {
+    S.aimYaw += (e.clientX - pd.lx) * 0.4;
+    S.aimPitch -= (e.clientY - pd.ly) * 0.4;
+  }
+  pd.lx = e.clientX; pd.ly = e.clientY;
+});
+const endPointer = () => {
+  clearTimeout(longTimer);
+  if (pd && !pd.drag && !pd.long) attempt();
+  pd = null;
+};
+stage.addEventListener('pointerup', endPointer);
+stage.addEventListener('pointercancel', () => { clearTimeout(longTimer); pd = null; });
+
+window.addEventListener('keydown', e => {
+  if (!S.running) return;
+  if (e.key.startsWith('Arrow')) { S.keys[e.key] = true; e.preventDefault(); }
+  if ((e.key === ' ' || e.key === 'Enter') && document.activeElement === stage) { e.preventDefault(); attempt(); }
+  if (e.key === 'r' || e.key === 'R') recenter(true);
+});
+window.addEventListener('keyup', e => { S.keys[e.key] = false; });
+
+$('#startBtn').addEventListener('click', start);
+$('#againBtn').addEventListener('click', start);
+$('#quitBtn').addEventListener('click', quit);
+$('#recenterBtn').addEventListener('click', () => recenter(true));
+$('#radarBtn').addEventListener('click', e => {
+  S.radar = !S.radar; radar.hidden = !S.radar;
+  e.currentTarget.setAttribute('aria-pressed', String(S.radar));
+});
+$('#voiceBtn').addEventListener('click', e => {
+  S.voice = !S.voice;
+  if (!S.voice) try { speechSynthesis.cancel(); } catch (err) {}
+  e.currentTarget.setAttribute('aria-pressed', String(S.voice));
+});
+
+document.addEventListener('visibilitychange', async () => {
+  if (!ctx) return;
+  if (document.hidden) ctx.suspend();
+  else {
+    ctx.resume();
+    if (S.running && 'wakeLock' in navigator) { try { wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {} }
+  }
+});
+})();
+</script>
+</body>
+</html>
