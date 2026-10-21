@@ -81,8 +81,8 @@ button:focus-visible,#stage:focus-visible{outline:2px solid var(--glow);outline-
 @keyframes pulse{0%{filter:brightness(1.8)}100%{filter:brightness(1)}}
 @keyframes caught{0%{transform:scale(1.2);filter:brightness(2.2)}100%{transform:scale(.6);filter:brightness(.6)}}
 @keyframes miss{0%,100%{translate:0}30%{translate:-10px}60%{translate:8px}}
-#status{margin:0;min-height:3em;max-width:22rem;text-align:center;font-size:22px;line-height:1.3;text-wrap:balance}
-#status.hot{color:var(--glow)}
+#status,#arStatus{margin:0;min-height:3em;max-width:22rem;text-align:center;font-size:22px;line-height:1.3;text-wrap:balance}
+#status.hot,#arStatus.hot{color:var(--glow)}
 #radar{width:min(100%,320px);height:auto;aspect-ratio:3/2;max-width:100%}
 .controls{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;padding-block:14px}
 .controls button{appearance:none;background:transparent;border:1px solid rgba(141,145,171,.4);border-radius:999px;padding:10px 16px;
@@ -96,6 +96,37 @@ button:focus-visible,#stage:focus-visible{outline:2px solid var(--glow);outline-
 #endBest{font:400 14px/1.4 var(--mono)!important;color:var(--dim)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
+/* Choix du mode */
+.modes{display:grid;gap:12px}
+.mode{appearance:none;text-align:left;background:var(--night-2);border:1px solid rgba(255,198,92,.35);border-radius:18px;
+  padding:16px 18px;display:grid;gap:6px;color:var(--ink);font:inherit}
+.mode strong{font-size:24px;line-height:1.1;color:var(--glow)}
+.mode span{color:var(--ink);font-size:15.5px;line-height:1.4}
+.mode small{font:400 12.5px/1.45 var(--mono);color:var(--dim)}
+.mode:disabled{opacity:.55;cursor:not-allowed}
+.mode:disabled strong{color:var(--dim)}
+
+/* Cache-cache (réalité augmentée) */
+#ar{position:relative}
+#arVeil{position:absolute;inset:0;background:var(--night);opacity:.5;transition:opacity .4s;pointer-events:none}
+#ar[data-phase="hand"] #arVeil,#ar[data-phase="seek"] #arVeil,#ar[data-phase="end"] #arVeil{opacity:1}
+.ar-ui{position:relative;height:100%;display:flex;flex-direction:column;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+  padding-left:max(16px, env(safe-area-inset-left,0px));padding-right:max(16px, env(safe-area-inset-right,0px))}
+.ar-panel{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;gap:16px;max-width:30rem;width:100%;margin:0 auto}
+.ar-big{margin:0;font-size:24px;line-height:1.3;text-wrap:balance}
+.row{display:flex;flex-wrap:wrap;gap:8px}
+.ghost{appearance:none;background:transparent;border:1px solid rgba(141,145,171,.5);border-radius:999px;padding:12px 18px;
+  font:500 14px/1 var(--mono);color:var(--ink)}
+.ghost:disabled,.primary:disabled{opacity:.4;cursor:not-allowed}
+#arTrack{min-height:1.5em}
+#arTrack.ok{color:var(--glow)}
+#arHand span{display:block}
+#arHand{appearance:none;border:0;background:transparent;color:var(--ink);text-align:left;font:inherit;cursor:pointer}
+#arSeek{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;
+  touch-action:none;user-select:none;-webkit-user-select:none}
+#arDist{margin:0;font:500 15px/1 var(--mono);font-variant-numeric:tabular-nums;color:var(--dim)}
+
 @media (prefers-reduced-motion: reduce){
   .orb,.orb.pulse,.orb.caught,.orb.miss{animation:none;transition:none}
 }
@@ -108,15 +139,24 @@ button:focus-visible,#stage:focus-visible{outline:2px solid var(--glow);outline-
     <div class="intro-inner">
       <p class="eyebrow">Prototype · jeu sonore</p>
       <h1>Luciole</h1>
-      <p class="lede">Sept lucioles se cachent autour de toi. Tu ne les vois pas&nbsp;: tu les entends.</p>
+      <p class="lede">Des lucioles invisibles. Tu ne les vois pas&nbsp;: tu les entends.</p>
       <ol class="how">
         <li><span>Mets des <b>écouteurs</b>. Le son se place à gauche, à droite, devant ou derrière.</span></li>
-        <li><span>Tiens le téléphone comme une <b>télécommande</b>, écran vers le ciel, et vise avec le haut du téléphone.</span></li>
         <li><span>Plus <b>aigu</b>&nbsp;: la luciole est plus haut. Plus <b>grave</b>&nbsp;: plus bas. Plus les bips sont <b>rapides</b>, plus tu es proche.</span></li>
         <li><span>Quand ça <b>scintille</b>, donne un coup sec du poignet, ou touche l'écran.</span></li>
       </ol>
-      <button id="startBtn" class="primary">Commencer</button>
-      <p class="fine">Appui long sur l'écran&nbsp;: recentrer droit devant.<br>Le gyroscope n'est accessible qu'en HTTPS. Sur ordinateur&nbsp;: flèches pour viser, espace pour attraper.</p>
+      <div class="modes">
+        <button id="startBtn" class="mode">
+          <strong>Sur place</strong>
+          <span>Tu restes au même endroit et tu tournes sur toi-même. Vise avec le haut du téléphone, écran vers le ciel.</span>
+          <small>Appui long&nbsp;: recentrer droit devant. Sur ordinateur&nbsp;: flèches et espace.</small>
+        </button>
+        <button id="arStartBtn" class="mode" disabled>
+          <strong>Cache-cache</strong>
+          <span>Quelqu'un cache les lucioles dans la pièce en posant le téléphone aux cachettes. Puis tu te déplaces pour les retrouver.</span>
+          <small id="arNote">Vérification de la compatibilité…</small>
+        </button>
+      </div>
     </div>
   </section>
 
@@ -140,6 +180,49 @@ button:focus-visible,#stage:focus-visible{outline:2px solid var(--glow);outline-
     <p id="endTime"></p>
     <p id="endBest"></p>
     <button id="againBtn" class="primary">Rejouer</button>
+  </section>
+
+  <section id="ar" class="screen" data-phase="hide" hidden>
+    <div id="arVeil"></div>
+    <div class="ar-ui">
+      <header class="hud"><span id="arCount">0 cachée</span><span id="arClock"></span></header>
+
+      <div id="arHide" class="ar-panel">
+        <p class="eyebrow">Celui qui cache</p>
+        <p class="ar-big">Va à la cachette, tiens le téléphone à l'endroit exact, puis touche «&nbsp;Cacher ici&nbsp;».</p>
+        <p id="arTrack" class="fine">Bouge doucement le téléphone pour qu'il repère la pièce…</p>
+        <button id="hideHereBtn" class="primary" disabled>Cacher ici</button>
+        <div class="row">
+          <button id="undoBtn" class="ghost" disabled>Annuler la dernière</button>
+          <button id="doneBtn" class="ghost" disabled>Passer au chercheur</button>
+        </div>
+        <p class="fine">Garde la caméra dégagée, sans la couvrir avec la main. Laisse au moins un mètre entre deux cachettes.</p>
+      </div>
+
+      <button id="arHand" class="ar-panel" hidden>
+        <span class="eyebrow">Au chercheur</span>
+        <span class="ar-big">Donne le téléphone au chercheur. Chercheur&nbsp;: mets les écouteurs, tiens le téléphone devant toi, et touche l'écran pour commencer.</span>
+      </button>
+
+      <div id="arSeek" role="button" tabindex="0" aria-label="Zone de jeu. Touche pour attraper la luciole." hidden>
+        <div class="orb" id="arOrb"></div>
+        <p id="arStatus" class="status-like">Écoute…</p>
+        <p id="arDist" hidden></p>
+      </div>
+
+      <div id="arEnd" class="ar-panel" hidden>
+        <h2 id="arEndTitle" style="margin:0;font-size:40px;line-height:1;color:var(--glow)">Toutes trouvées</h2>
+        <p id="arEndTime" class="ar-big"></p>
+        <button id="replayBtn" class="primary">Rejouer avec les mêmes cachettes</button>
+        <button id="rehideBtn" class="ghost">Cacher de nouvelles lucioles</button>
+      </div>
+
+      <footer class="controls">
+        <button id="arDistBtn" aria-pressed="false">Distance</button>
+        <button id="arVoiceBtn" aria-pressed="true">Voix</button>
+        <button id="arQuitBtn">Quitter</button>
+      </footer>
+    </div>
   </section>
 
   <div id="live" class="sr" aria-live="polite"></div>
@@ -259,7 +342,7 @@ function blip(t, f, vol) {
   o.connect(g); g.connect(blipFilter);
   o.start(t); o.stop(t + 0.16);
   const delayMs = Math.max(0, (t - ctx.currentTime) * 1000);
-  setTimeout(() => { orb.classList.remove('pulse'); void orb.offsetWidth; orb.classList.add('pulse'); }, delayMs);
+  setTimeout(() => { const o = activeOrb; o.classList.remove('pulse'); void o.offsetWidth; o.classList.add('pulse'); }, delayMs);
 }
 
 function note(t, f, dur, vol, type = 'sine', wet = true) {
@@ -341,7 +424,8 @@ function onOrientation(e) {
   S.rawPitch = e.beta;   // positif = haut du téléphone relevé
 }
 function onMotion(e) {
-  if (!S.running || S.between) return;
+  const arSeeking = A.phase === 'seek' && !A.between;
+  if (!arSeeking && (!S.running || S.between)) return;
   const r = e.rotationRate;
   let mag = 0;
   if (r && r.alpha != null) mag = Math.hypot(r.alpha, r.beta, r.gamma);
@@ -349,7 +433,7 @@ function onMotion(e) {
     const a = e.acceleration; mag = Math.hypot(a.x, a.y, a.z) * 25;
   }
   const now = performance.now();
-  if (mag > FLICK && now - S.lastFlick > 650) { S.lastFlick = now; attempt(); }
+  if (mag > FLICK && now - S.lastFlick > 650) { S.lastFlick = now; arSeeking ? arAttempt() : attempt(); }
 }
 function listen() {
   if (listening) return;
@@ -367,13 +451,17 @@ function recenter(announce) {
 
 /* ---------- Partie ---------- */
 const orb = $('#orb'), statusEl = $('#status'), countEl = $('#count'), clockEl = $('#clock');
+let activeOrb = orb;
+function ensureAudio() { if (!ctx) initAudio(); ctx.resume(); }
+function unlockSpeech() { try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch (e) {} }
+function showScreen(name) { ['intro', 'game', 'end', 'ar'].forEach(id => { $('#' + id).hidden = id !== name; }); }
 let wakeLock = null;
 
 async function start() {
-  if (!ctx) initAudio();
-  ctx.resume();
+  ensureAudio();
+  activeOrb = orb;
   // débloque la synthèse vocale sur iOS (doit partir du geste)
-  try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch (e) {}
+  unlockSpeech();
 
   const reqs = [];
   if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function')
@@ -390,7 +478,7 @@ async function start() {
   while (!S.hasOrientation && performance.now() - t0 < 1200) await new Promise(r => setTimeout(r, 60));
   S.mode = S.hasOrientation ? 'gyro' : 'touch';
 
-  $('#intro').hidden = true; $('#end').hidden = true; $('#game').hidden = false;
+  showScreen('game');
   $('#stage').focus({ preventScroll: true });
 
   clearPad();
@@ -453,7 +541,7 @@ function finish() {
   say('Bravo. Sept lucioles en ' + fmtSpoken(total) + (record ? '. Nouveau record.' : '.'));
   $('#endTime').textContent = TOTAL + ' lucioles en ' + fmt(total);
   $('#endBest').textContent = record ? 'Nouveau record' : 'Record : ' + fmt(best);
-  setTimeout(() => { $('#game').hidden = true; $('#end').hidden = false; $('#againBtn').focus(); }, 1600);
+  setTimeout(() => { showScreen('end'); $('#againBtn').focus(); }, 1600);
 }
 
 function quit() {
@@ -461,7 +549,7 @@ function quit() {
   if (ctx) { shimTo(0); clearPad(); }
   try { speechSynthesis.cancel(); } catch (e) {}
   if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
-  $('#game').hidden = true; $('#end').hidden = true; $('#intro').hidden = false;
+  showScreen('intro');
 }
 
 function setStatus(txt, hot) {
@@ -570,6 +658,269 @@ function drawRadar(dYaw, dPitch) {
   rc.fillStyle = g; rc.beginPath(); rc.arc(px, py, 26, 0, Math.PI * 2); rc.fill();
 }
 
+/* ---------- Cache-cache : WebXR, suivi de position réel ---------- */
+const R_CATCH = 0.35;   // m : rayon dans lequel on peut attraper
+const MIN_GAP = 0.8;    // m : distance minimale entre deux cachettes
+const MAX_SPOTS = 9;
+const A = {
+  session: null, ref: null, gl: null, phase: 'idle',
+  spots: [], target: -1, caught: 0, between: false, tStart: 0,
+  pos: null, inv: null, tracked: false, lostSince: 0, lastTrackWarn: 0,
+  lastNear: -1e9, near: false, nextBlip: 0, lastMiss: 0, showDist: false,
+  lastStatus: '', lastClock: ''
+};
+const arRoot = $('#ar'), arOrb = $('#arOrb'), arStatus = $('#arStatus'), arDist = $('#arDist');
+
+function arPanels(phase) {
+  A.phase = phase;
+  arRoot.dataset.phase = phase;
+  $('#arHide').hidden = phase !== 'hide';
+  $('#arHand').hidden = phase !== 'hand';
+  $('#arSeek').hidden = phase !== 'seek';
+  $('#arEnd').hidden = phase !== 'end';
+  $('#arDistBtn').hidden = phase !== 'seek';
+  arCountUI();
+}
+
+function arCountUI() {
+  const n = A.spots.length;
+  if (A.phase === 'hide') $('#arCount').textContent = n + (n > 1 ? ' cachées' : ' cachée');
+  else $('#arCount').textContent = A.caught + ' / ' + n;
+  if (A.phase !== 'seek') $('#arClock').textContent = '';
+  $('#undoBtn').disabled = n === 0;
+  $('#doneBtn').disabled = n === 0;
+  $('#hideHereBtn').disabled = !A.tracked || n >= MAX_SPOTS;
+}
+
+function arTrackUI() {
+  const el = $('#arTrack');
+  el.textContent = A.tracked ? 'Pièce repérée. Tu peux cacher.' : "Bouge doucement le téléphone pour qu'il repère la pièce…";
+  el.classList.toggle('ok', A.tracked);
+  arCountUI();
+}
+
+async function startAR() {
+  ensureAudio(); unlockSpeech(); listen();
+  activeOrb = arOrb;
+  arPanels('hide');
+  showScreen('ar');
+  let session;
+  try {
+    session = await navigator.xr.requestSession('immersive-ar', {
+      requiredFeatures: ['local', 'dom-overlay'],
+      domOverlay: { root: arRoot }
+    });
+  } catch (e) {
+    showScreen('intro');
+    $('#arNote').textContent = 'Le mode Cache-cache n\'a pas pu démarrer (' + (e && e.message ? e.message : e) + '). Vérifie que l\'accès à la caméra est autorisé.';
+    return;
+  }
+  A.session = session;
+  const canvas = document.createElement('canvas');
+  const gl = canvas.getContext('webgl', { xrCompatible: true, alpha: true });
+  A.gl = gl;
+  session.updateRenderState({ baseLayer: new XRWebGLLayer(session, gl) });
+  A.ref = await session.requestReferenceSpace('local');
+  if (A.ref.addEventListener) A.ref.addEventListener('reset', () => {
+    if (A.spots.length) say('Le téléphone a perdu ses repères. Les cachettes peuvent être décalées.');
+  });
+  session.addEventListener('end', onAREnd);
+  A.spots = []; A.tracked = false;
+  arPanels('hide'); arTrackUI();
+  say('Celui qui cache : va à la première cachette.');
+  session.requestAnimationFrame(arFrame);
+}
+
+function onAREnd() {
+  A.session = null; A.phase = 'idle'; A.between = false;
+  if (ctx) { shimTo(0); clearPad(); }
+  try { speechSynthesis.cancel(); } catch (e) {}
+  activeOrb = orb;
+  showScreen('intro');
+}
+
+function arFrame(t, frame) {
+  const s = frame.session;
+  s.requestAnimationFrame(arFrame);
+  const gl = A.gl, layer = s.renderState.baseLayer;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer);
+  gl.clearColor(0, 0, 0, 0);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+
+  const pose = frame.getViewerPose(A.ref);
+  const tracked = !!pose && !pose.emulatedPosition;
+  const now = performance.now();
+  if (tracked !== A.tracked) {
+    A.tracked = tracked;
+    if (!tracked) A.lostSince = now;
+    if (A.phase === 'hide') arTrackUI(); else arCountUI();
+  }
+  if (pose) { A.pos = pose.transform.position; A.inv = pose.transform.inverse.matrix; }
+  if (A.phase === 'seek') seekStep(now);
+}
+
+function placeSpot() {
+  if (!A.tracked || !A.pos) { say('Attends que la pièce soit repérée.'); return; }
+  const p = { x: A.pos.x, y: A.pos.y, z: A.pos.z };
+  const tooClose = A.spots.some(s => Math.hypot(s.x - p.x, s.y - p.y, s.z - p.z) < MIN_GAP);
+  if (tooClose) { missSound(); say('Trop près d\'une autre luciole.'); return; }
+  A.spots.push(p);
+  const t = ctx.currentTime;
+  note(t, 880, 0.3, 0.18); note(t + 0.09, 1318.5, 0.4, 0.15);
+  vibrate(30);
+  say('Luciole ' + A.spots.length + ' cachée.');
+  arCountUI();
+}
+
+function undoSpot() {
+  if (!A.spots.length) return;
+  A.spots.pop();
+  say('Dernière luciole retirée.');
+  arCountUI();
+}
+
+function toHandover() {
+  if (!A.spots.length) return;
+  arPanels('hand');
+  say('Donne le téléphone au chercheur. Touche l\'écran pour commencer.');
+}
+
+function startSeek() {
+  A.spots.forEach(s => { s.found = false; });
+  A.caught = 0; A.between = false; A.lastClock = ''; A.lastStatus = '';
+  arPanels('seek');
+  clearPad(); padNote(PAD[0]);
+  const n = A.spots.length;
+  say(n > 1 ? 'Cherche. Il y a ' + n + ' lucioles.' : 'Cherche. Il y a une luciole.');
+  A.tStart = performance.now();
+  pickTarget();
+  $('#arSeek').focus({ preventScroll: true });
+}
+
+function pickTarget() {
+  let best = -1, bd = Infinity;
+  A.spots.forEach((s, i) => {
+    if (s.found) return;
+    const d = A.pos ? Math.hypot(s.x - A.pos.x, s.y - A.pos.y, s.z - A.pos.z) : i;
+    if (d < bd) { bd = d; best = i; }
+  });
+  A.target = best;
+  A.nextBlip = ctx.currentTime + 0.05;
+}
+
+function arSetStatus(txt, hot) {
+  if (txt === A.lastStatus) return;
+  A.lastStatus = txt;
+  arStatus.textContent = txt;
+  arStatus.classList.toggle('hot', !!hot);
+}
+
+function seekStep(now) {
+  const c = fmt(now - A.tStart);
+  if (c !== A.lastClock) { A.lastClock = c; $('#arClock').textContent = c; }
+  if (A.between || A.target < 0) return;
+
+  if (!A.tracked || !A.inv) {
+    if (A.near) { A.near = false; shimTo(0); arOrb.classList.remove('locked'); }
+    arSetStatus('Repère perdu. Bouge doucement le téléphone.');
+    if (now - A.lostSince > 1500 && now - A.lastTrackWarn > 7000) { A.lastTrackWarn = now; say('Repère perdu. Bouge doucement le téléphone.'); }
+    return;
+  }
+
+  // position de la luciole dans le repère du téléphone (x droite, y haut, z vers l'arrière)
+  const sp = A.spots[A.target], m = A.inv;
+  const lx = m[0] * sp.x + m[4] * sp.y + m[8] * sp.z + m[12];
+  const ly = m[1] * sp.x + m[5] * sp.y + m[9] * sp.z + m[13];
+  const lz = m[2] * sp.x + m[6] * sp.y + m[10] * sp.z + m[14];
+  const d = Math.hypot(lx, ly, lz);
+  const k = d < 0.2 ? 0.2 / Math.max(d, 1e-4) : 1;   // évite la singularité quand on est dessus
+  setPanner(lx * k, ly * k, lz * k);
+
+  const close = clamp(1 - d / 5, 0, 1);               // 0 à 5 m et plus, 1 dessus
+  const dy = sp.y - A.pos.y;
+  let cutoff = 700 + 6500 * Math.pow(close, 1.5);
+  if (lz > 0.3) cutoff *= 0.55;                       // derrière : plus étouffé
+  blipFilter.frequency.setTargetAtTime(cutoff, ctx.currentTime, 0.05);
+
+  const wasNear = A.near;
+  A.near = d < R_CATCH;
+  if (A.near) A.lastNear = now;
+  if (A.near && !wasNear) { shimTo(0.09); vibrate(15); arOrb.classList.add('locked'); }
+  if (!A.near && wasNear) { shimTo(0); arOrb.classList.remove('locked'); }
+
+  const f = 740 * Math.pow(2, clamp(dy, -1.2, 1.2) / 0.8);
+  const interval = A.near ? 0.07 : clamp(0.08 + 0.22 * d, 0.08, 1.1);
+  const vol = 0.2 + 0.25 * close;
+  if (A.nextBlip < ctx.currentTime) A.nextBlip = ctx.currentTime + 0.01;
+  while (A.nextBlip < ctx.currentTime + 0.1) { blip(A.nextBlip, f, vol); A.nextBlip += interval; }
+
+  arOrb.style.setProperty('--i', close.toFixed(3));
+  if (A.showDist) arDist.textContent = d.toFixed(2).replace('.', ',') + ' m';
+
+  if (A.near) arSetStatus('Elle est là : touche l\'écran !', true);
+  else if (d < 1) arSetStatus('Tout près', true);
+  else if (lz > 0.3 && d > 1) arSetStatus('Elle est derrière toi');
+  else if (d < 2.5) arSetStatus('Tu te rapproches');
+  else arSetStatus('Cherche…');
+}
+
+function arAttempt() {
+  if (A.phase !== 'seek' || A.between) return;
+  const now = performance.now();
+  if (now - A.lastNear < CATCH_LATCH) arCaught();
+  else if (now - A.lastMiss > 400) {
+    A.lastMiss = now;
+    missSound(); vibrate(40);
+    arOrb.classList.remove('miss'); void arOrb.offsetWidth; arOrb.classList.add('miss');
+  }
+}
+
+function arCaught() {
+  A.spots[A.target].found = true;
+  A.caught++; A.between = true; A.near = false;
+  shimTo(0); arpeggio(); vibrate([20, 40, 20]);
+  padNote(PAD[Math.min(A.caught, PAD.length - 1)]);
+  arOrb.classList.remove('caught', 'locked'); void arOrb.offsetWidth; arOrb.classList.add('caught');
+  arCountUI();
+  const left = A.spots.length - A.caught;
+  if (left <= 0) {
+    const total = performance.now() - A.tStart;
+    say('Bravo. Toutes trouvées en ' + fmtSpoken(total) + '.');
+    $('#arEndTime').textContent = A.spots.length + (A.spots.length > 1 ? ' lucioles en ' : ' luciole en ') + fmt(total);
+    setTimeout(() => { arPanels('end'); $('#replayBtn').focus(); }, 1600);
+    return;
+  }
+  say(left > 1 ? 'Trouvée. Encore ' + left + '.' : 'Trouvée. Plus qu\'une.');
+  arSetStatus(left > 1 ? 'Trouvée ! Encore ' + left : 'Trouvée ! Plus qu\'une');
+  setTimeout(() => { A.between = false; pickTarget(); }, 1500);
+}
+
+// les touches sur l'interface ne doivent pas déclencher d'événement XR
+arRoot.addEventListener('beforexrselect', e => e.preventDefault());
+$('#hideHereBtn').addEventListener('click', placeSpot);
+$('#undoBtn').addEventListener('click', undoSpot);
+$('#doneBtn').addEventListener('click', toHandover);
+$('#arHand').addEventListener('click', startSeek);
+$('#arSeek').addEventListener('pointerup', arAttempt);
+$('#arSeek').addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); arAttempt(); } });
+$('#replayBtn').addEventListener('click', () => { clearPad(); toHandover(); });
+$('#rehideBtn').addEventListener('click', () => { clearPad(); A.spots = []; arPanels('hide'); arTrackUI(); say('Va à la première cachette.'); });
+$('#arQuitBtn').addEventListener('click', () => { if (A.session) A.session.end(); else onAREnd(); });
+$('#arDistBtn').addEventListener('click', e => {
+  A.showDist = !A.showDist; arDist.hidden = !A.showDist;
+  e.currentTarget.setAttribute('aria-pressed', String(A.showDist));
+});
+$('#arStartBtn').addEventListener('click', startAR);
+
+(async () => {
+  let ok = false;
+  try { ok = !!(navigator.xr && await navigator.xr.isSessionSupported('immersive-ar')); } catch (e) {}
+  $('#arStartBtn').disabled = !ok;
+  $('#arNote').textContent = ok
+    ? 'Utilise la caméra pour suivre où se trouve le téléphone dans la pièce.'
+    : 'Pas disponible sur cet appareil : il faut Chrome sur un téléphone Android compatible ARCore. Ne marche pas sur iPhone.';
+})();
+
 /* ---------- Entrées ---------- */
 const stage = $('#stage');
 let pd = null, longTimer = null;
@@ -611,11 +962,11 @@ $('#radarBtn').addEventListener('click', e => {
   S.radar = !S.radar; radar.hidden = !S.radar;
   e.currentTarget.setAttribute('aria-pressed', String(S.radar));
 });
-$('#voiceBtn').addEventListener('click', e => {
+['#voiceBtn', '#arVoiceBtn'].forEach(sel => $(sel).addEventListener('click', () => {
   S.voice = !S.voice;
   if (!S.voice) try { speechSynthesis.cancel(); } catch (err) {}
-  e.currentTarget.setAttribute('aria-pressed', String(S.voice));
-});
+  ['#voiceBtn', '#arVoiceBtn'].forEach(b => $(b).setAttribute('aria-pressed', String(S.voice)));
+}));
 
 document.addEventListener('visibilitychange', async () => {
   if (!ctx) return;
