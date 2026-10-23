@@ -196,6 +196,9 @@ details.settings .inner { display: grid; gap: var(--s4); margin-top: var(--s4); 
 .status-line { font-size: 13px; color: var(--muted); }
 .editbox { display: grid; gap: var(--s2); }
 .editbox textarea { width: 100%; min-height: 80px; border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: var(--surface); font-size: 15px; }
+.src { font-size: 11px; letter-spacing: 0.04em; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; }
+.src[data-src="claude"] { color: var(--c-style); border-color: currentColor; }
+.card[data-state="decor"] { opacity: 0.6; border-left-color: var(--line); }
 .example-tag { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; color: var(--muted); border: 1px dashed var(--muted); padding: 2px 7px; border-radius: 4px; }
 .empty { color: var(--muted); padding: var(--s5); text-align: center; border: 1px dashed var(--line); border-radius: var(--r); }
 
@@ -217,9 +220,9 @@ details.settings .inner { display: grid; gap: var(--s4); margin-top: var(--s4); 
     <p>Relecture des textes incrustés dans une vidéo</p>
   </div>
   <div class="engines" aria-live="polite">
-    <span class="chip" id="chipOcr" data-s="idle"><i></i>Lecture (OCR) : en attente</span>
+    <span class="chip" id="chipOcr" data-s="idle"><i></i>Lecture PaddleOCR : en attente</span>
     <span class="chip" id="chipGc" data-s="idle"><i></i>Grammalecte : en attente</span>
-    <span class="chip"><i style="background:var(--ok)"></i>100 % local, aucun envoi</span>
+    <span class="chip" id="chipAi" data-s="idle"><i></i>Claude : en attente</span>
   </div>
 </header>
 
@@ -274,15 +277,9 @@ details.settings .inner { display: grid; gap: var(--s4); margin-top: var(--s4); 
         <summary>Réglages de lecture</summary>
         <div class="inner">
           <div class="grid2">
-            <div class="field">Couleur du texte
-              <div class="seg" role="group" aria-label="Couleur du texte">
-                <button type="button" data-tone="light" aria-pressed="true">Clair</button>
-                <button type="button" data-tone="dark" aria-pressed="false">Foncé</button>
-              </div>
-            </div>
           </div>
+          <label class="check" id="claudeOpt"><input type="checkbox" id="useClaude" checked><span>Relecture par Claude en plus de Grammalecte<small>Repère aussi les mots manquants, répétitions et tournures fautives. Seuls les textes lus sont envoyés, jamais la vidéo.</small></span></label>
           <label class="check"><input type="checkbox" id="refine" checked><span>Timecodes à l'image près<small>Affine l'entrée et la sortie de chaque texte (un peu plus long).</small></span></label>
-          <label class="check"><input type="checkbox" id="bigText"><span>Grands titres<small>À cocher si la vidéo contient de gros textes (titres plein écran).</small></span></label>
           <div>
             <p class="eyebrow" style="margin:0 0 6px">Règles vérifiées</p>
             <div class="grid2" id="rules"></div>
@@ -311,9 +308,10 @@ details.settings .inner { display: grid; gap: var(--s4); margin-top: var(--s4); 
       <h2>Analyse en cours</h2>
       <div class="progress">
         <div class="phase" id="ph-scan"><span>Lecture des images</span><span class="n mono">0 / 0</span><div class="bar"><b></b></div></div>
-        <div class="phase" id="ph-ocr"><span>Reconnaissance des textes</span><span class="n mono">0 / 0</span><div class="bar"><b></b></div></div>
+        <div class="phase" id="ph-ocr"><span>Lecture des textes (PaddleOCR)</span><span class="n mono">0 / 0</span><div class="bar"><b></b></div></div>
         <div class="phase" id="ph-tc"><span>Timecodes à l'image</span><span class="n mono">—</span><div class="bar"><b></b></div></div>
         <div class="phase" id="ph-gc"><span>Relecture Grammalecte</span><span class="n mono">—</span><div class="bar"><b></b></div></div>
+        <div class="phase" id="ph-ai"><span>Relecture Claude</span><span class="n mono">—</span><div class="bar"><b></b></div></div>
         <div class="ticker" id="ticker">Préparation…</div>
       </div>
     </div>
@@ -330,7 +328,18 @@ details.settings .inner { display: grid; gap: var(--s4); margin-top: var(--s4); 
         <button class="btn sm" type="button" data-filter="pending" aria-pressed="true">À relire</button>
         <button class="btn sm" type="button" data-filter="done" aria-pressed="false">Traités</button>
         <button class="btn sm" type="button" data-filter="all" aria-pressed="false">Tous les textes</button>
+        <button class="btn sm ghost" type="button" data-filter="decor" aria-pressed="false">Écartés</button>
       </div>
+    </div>
+
+    <div class="panel" id="aiPanel" hidden>
+      <h2 id="aiTitle">Relecture Claude</h2>
+      <p class="hint" id="aiMsg" style="margin:0 0 var(--s3)"></p>
+      <form class="row" id="aiForm" autocomplete="on">
+        <input type="text" id="aiUser" name="username" autocomplete="username" placeholder="Identifiant (si besoin)" aria-label="Identifiant du site" style="flex:1 1 140px;min-width:0;border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:var(--surface)">
+        <input type="password" id="aiPass" name="password" autocomplete="current-password" placeholder="Mot de passe eulst.app" aria-label="Mot de passe du site" style="flex:1 1 160px;min-width:0;border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:var(--surface)">
+        <button class="btn primary" type="submit" id="aiGo">Relire avec Claude</button>
+      </form>
     </div>
 
     <div class="cards" id="cards"></div>
@@ -355,9 +364,8 @@ details.settings .inner { display: grid; gap: var(--s4); margin-top: var(--s4); 
   </section>
 </main>
 
-<p class="foot">Coquille lit les textes avec Tesseract (OCR) et les relit avec Grammalecte 2.3.1 (GPL v3), directement dans ton navigateur. La vidéo ne quitte jamais ton ordinateur.</p>
+<p class="foot">Coquille lit les textes avec PaddleOCR (PP-OCRv6, Apache 2.0) dans ton navigateur et les relit avec Grammalecte 2.3.1 (GPL v3), plus Claude si l'option est cochée. La vidéo ne quitte jamais ton ordinateur ; seule la relecture Claude envoie les textes lus.</p>
 
-<script src="vendor/tesseract/tesseract.min.js"></script>
 <script>
 "use strict";
 /* ============================================================
@@ -463,42 +471,31 @@ const GC = {
   async setOptions() { if (!this.worker) return; await this.ready; return this.call("options", { options: gcOptions() }); }
 };
 
-function simdSupported() {
-  try { return WebAssembly.validate(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1, 0, 10, 10, 1, 8, 0, 65, 0, 253, 15, 253, 98, 11])); } catch (e) { return false; }
-}
 const OCR = {
-  scheduler: null, n: 0, ready: null,
+  worker: null, seq: 0, pending: new Map(), ready: null, threads: 1,
   start() {
     if (this.ready) return this.ready;
-    setChip("chipOcr", "loading", "Lecture (OCR) : chargement…");
-    this.ready = (async () => {
-      const core = simdSupported() ? "vendor/tesseract/tesseract-core-simd-lstm.wasm.js" : "vendor/tesseract/tesseract-core-lstm.wasm.js";
-      this.n = Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 4) - 2));
-      this.scheduler = Tesseract.createScheduler();
-      const mk = async () => {
-        // ocr-worker.js sert le modèle français embarqué (aucun téléchargement externe)
-        const w = await Tesseract.createWorker("fra", 1, {
-          workerPath: abs("vendor/tesseract/ocr-worker.js"), corePath: abs(core), langPath: abs("vendor/tesseract/lang"),
-          workerBlobURL: false, cacheMethod: "none", gzip: false
-        });
-        await w.setParameters({ tessedit_pageseg_mode: "7", preserve_interword_spaces: "0" });
-        this.scheduler.addWorker(w);
+    setChip("chipOcr", "loading", "Lecture PaddleOCR : chargement…");
+    this.ready = new Promise((resolve, reject) => {
+      try { this.worker = new Worker("vendor/paddle/paddle-worker.js"); }
+      catch (e) { setChip("chipOcr", "error", "Lecture PaddleOCR : indisponible"); reject(e); return; }
+      this.worker.onmessage = (ev) => {
+        const { id, ok, result, error } = ev.data; const p = this.pending.get(id);
+        if (!p) return; this.pending.delete(id); ok ? p.res(result) : p.rej(new Error(error));
       };
-      await mk();
-      setChip("chipOcr", "ready", "Lecture (OCR) : prête");
-      for (let i = 1; i < this.n; i++) mk().catch(() => {});
-      return true;
-    })().catch((e) => { setChip("chipOcr", "error", "Lecture (OCR) : erreur"); this.ready = null; throw e; });
+      this.worker.onerror = (e) => { setChip("chipOcr", "error", "Lecture PaddleOCR : erreur de chargement"); reject(new Error(e.message || "worker")); };
+      const threads = self.crossOriginIsolated ? Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 4) >> 1)) : 1;
+      this.call("init", { threads }).then((r) => { this.threads = r.threads; setChip("chipOcr", "ready", "Lecture PaddleOCR : prête"); resolve(r); },
+        (e) => { setChip("chipOcr", "error", "Lecture PaddleOCR : erreur"); this.ready = null; reject(e); });
+    });
     return this.ready;
   },
-  async read(canvas) {
-    const r = await this.scheduler.addJob("recognize", canvas, {}, { text: true, blocks: true });
-    const words = [];
-    for (const b of r.data.blocks || []) for (const p of b.paragraphs || []) for (const l of p.lines || []) for (const w of l.words || []) {
-      if (w.text && w.text.trim()) words.push({ text: w.text.trim(), conf: w.confidence });
-    }
-    return { words, conf: r.data.confidence };
-  }
+  call(cmd, data, transfer) {
+    const id = ++this.seq;
+    return new Promise((res, rej) => { this.pending.set(id, { res, rej }); this.worker.postMessage({ id, cmd, ...data }, transfer || []); });
+  },
+  read(img) { const buf = img.data.slice().buffer; return this.call("read", { buf, w: img.width, h: img.height }, [buf]); },
+  reset() { return this.worker ? this.call("reset", {}) : Promise.resolve(); }
 };
 function setChip(id, s, txt) { const c = $("#" + id); c.dataset.s = s; c.lastChild.textContent = txt; }
 
@@ -656,6 +653,11 @@ function findText(m, w, h, P) {
   }
   return { lines, paras, clean, cleanCount };
 }
+function textMaskBoth(data, w, h, P) {
+  const a = textMask(data, w, h, { ...P, dark: false }), b = textMask(data, w, h, { ...P, dark: true });
+  for (let i = 0; i < a.length; i++) a[i] |= b[i];
+  return a;
+}
 function maskDiff(a, b) { let d = 0; for (let i = 0; i < a.length; i++) d += a[i] ^ b[i]; return d; }
 
 /* ============================================================
@@ -668,10 +670,10 @@ function seek(v, t) {
     v.currentTime = Math.min(Math.max(0, t), Math.max(0, v.duration - 0.001));
   });
 }
-function analysisParams(scale, big) {
+function analysisParams(scale, big = false) {
   const u = Math.min(S.vw, S.vh) * scale / 1080;
   const kk = Math.max(9, Math.round((big ? 34 : 17) * u)) | 1;
-  return { k: kk, D: 55, L: 170, sat: 70, dark: S.tone === "dark", hMin: Math.max(6, Math.round(10 * u)), hMax: Math.round((big ? 170 : 75) * u), aMin: Math.max(8, Math.round(20 * u * u)) };
+  return { k: kk, D: 55, L: 170, sat: 70, dark: false, hMin: Math.max(6, Math.round(10 * u)), hMax: Math.round((big ? 170 : 75) * u), aMin: Math.max(8, Math.round(20 * u * u)) };
 }
 
 class Scanner {
@@ -686,7 +688,7 @@ class Scanner {
     this.cw = Math.max(16, Math.round(rw * this.scale)); this.ch = Math.max(16, Math.round(rh * this.scale));
     this.cv = document.createElement("canvas"); this.cv.width = this.cw; this.cv.height = this.ch;
     this.ctx = this.cv.getContext("2d", { willReadFrequently: true });
-    this.P = analysisParams(this.scale, $("#bigText").checked);
+    this.P = analysisParams(this.scale);
   }
   async ready() {
     if (this.v.readyState >= 1) return;
@@ -696,25 +698,15 @@ class Scanner {
     this.ctx.drawImage(this.v, this.src.x, this.src.y, this.src.w, this.src.h, 0, 0, this.cw, this.ch);
     return this.ctx.getImageData(0, 0, this.cw, this.ch);
   }
-  lineCanvas(clean, l) {
-    const pad = Math.round(0.35 * l.mh), up = l.mh < 18 ? 2 : 1;
-    const w = l.bx1 - l.bx0, h = l.by1 - l.by0;
-    const c = document.createElement("canvas"); c.width = (w + 2 * pad) * up; c.height = (h + 2 * pad) * up;
-    const x = c.getContext("2d"); const id = x.createImageData(w + 2 * pad, h + 2 * pad); const d = id.data;
-    d.fill(255);
-    for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) {
-      if (clean[(l.by0 + yy) * this.cw + (l.bx0 + xx)]) { const o = ((yy + pad) * (w + 2 * pad) + (xx + pad)) * 4; d[o] = d[o + 1] = d[o + 2] = 0; }
-    }
-    if (up === 1) { x.putImageData(id, 0, 0); return c; }
-    const t = document.createElement("canvas"); t.width = w + 2 * pad; t.height = h + 2 * pad; t.getContext("2d").putImageData(id, 0, 0);
-    x.imageSmoothingEnabled = true; x.drawImage(t, 0, 0, c.width, c.height); return c;
-  }
-  thumb(p) {
-    const pad = Math.round(0.8 * p.mh);
+  /* vignette du paragraphe, prise sur l'image analysée */
+  thumb(img, p) {
+    if (!this.tc) { this.tc = document.createElement("canvas"); }
+    this.tc.width = img.width; this.tc.height = img.height; this.tc.getContext("2d").putImageData(img, 0, 0);
+    const pad = Math.round(0.6 * p.mh);
     const x0 = Math.max(0, p.x0 - pad), y0 = Math.max(0, p.y0 - pad), x1 = Math.min(this.cw, p.x1 + pad), y1 = Math.min(this.ch, p.y1 + pad);
     const w = x1 - x0, h = y1 - y0, s = Math.min(1, 480 / w);
-    const c = document.createElement("canvas"); c.width = Math.round(w * s); c.height = Math.round(h * s);
-    c.getContext("2d").drawImage(this.cv, x0, y0, w, h, 0, 0, c.width, c.height);
+    const c = document.createElement("canvas"); c.width = Math.max(1, Math.round(w * s)); c.height = Math.max(1, Math.round(h * s));
+    c.getContext("2d").drawImage(this.tc, x0, y0, w, h, 0, 0, c.width, c.height);
     return c.toDataURL("image/jpeg", 0.82);
   }
   /* boîte (coord. canvas) → coordonnées normalisées dans l'image vidéo */
@@ -723,6 +715,50 @@ class Scanner {
   }
   dispose() { this.v.removeAttribute("src"); this.v.load(); this.v.remove(); }
 }
+
+/* Lignes lues par PaddleOCR → lignes fusionnées (mots très espacés) → paragraphes. */
+function groupLines(raw) {
+  let lines = raw.filter((l) => l.conf >= 0.55 && /[A-Za-zÀ-ÖØ-öø-ÿŒœ0-9]/.test(l.text))
+    .map((l) => ({ ...l, mh: l.y1 - l.y0, parts: [l] }));
+  lines.sort((a, b) => a.x0 - b.x0);
+  for (let changed = true; changed;) {
+    changed = false;
+    outer: for (let i = 0; i < lines.length; i++) for (let j = 0; j < lines.length; j++) {
+      if (i === j) continue; const a = lines[i], b = lines[j];
+      const ov = Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0), hm = Math.max(a.mh, b.mh);
+      if (b.x0 >= a.x0 && ov > 0.6 * Math.min(a.mh, b.mh) && b.x0 - a.x1 < 2.5 * hm && b.mh / a.mh > 0.6 && b.mh / a.mh < 1.6) {
+        a.x1 = Math.max(a.x1, b.x1); a.y0 = Math.min(a.y0, b.y0); a.y1 = Math.max(a.y1, b.y1); a.parts.push(...b.parts); a.mh = a.y1 - a.y0;
+        lines.splice(j, 1); changed = true; break outer;
+      }
+    }
+  }
+  for (const l of lines) { l.parts.sort((a, b) => a.x0 - b.x0); l.words = l.parts.flatMap((p) => p.text.split(/\s+/).filter(Boolean).map((t) => ({ text: t, conf: p.conf * 100 }))); }
+  lines.sort((a, b) => a.y0 - b.y0);
+  const paras = [];
+  for (const l of lines) {
+    const p = paras.find((p) => {
+      const last = p.lines[p.lines.length - 1];
+      const gap = l.y0 - last.y1, ov = Math.min(l.x1, last.x1) - Math.max(l.x0, last.x0), rat = l.mh / last.mh;
+      return gap > -0.4 * l.mh && gap < 0.9 * Math.max(l.mh, last.mh) && ov > -1.5 * l.mh && rat > 0.65 && rat < 1.5;
+    });
+    if (p) p.lines.push(l); else paras.push({ lines: [l] });
+  }
+  for (const p of paras) {
+    p.x0 = Math.min(...p.lines.map((l) => l.x0)); p.x1 = Math.max(...p.lines.map((l) => l.x1));
+    p.y0 = Math.min(...p.lines.map((l) => l.y0)); p.y1 = Math.max(...p.lines.map((l) => l.y1));
+    p.mh = p.lines[0].mh;
+  }
+  return paras;
+}
+function thumbSig(img) { // petite empreinte de l'image pour sauter les images identiques
+  const W = 48, H = Math.max(8, Math.round((48 * img.height) / img.width)), d = img.data, out = new Float32Array(W * H);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const o = (Math.floor(((y + 0.5) * img.height) / H) * img.width + Math.floor(((x + 0.5) * img.width) / W)) * 4;
+    out[y * W + x] = (d[o] * 77 + d[o + 1] * 150 + d[o + 2] * 29) >> 8;
+  }
+  return out;
+}
+const sigDiff = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += Math.abs(a[i] - b[i]); return s / a.length; };
 
 /* ============================================================
    Nettoyage et comparaison des textes lus
@@ -786,49 +822,56 @@ async function runAnalysis() {
   const t0 = performance.now();
   $("#runBtn").disabled = true; $("#stopBtn").hidden = false; $("#progressPanel").hidden = false;
   $("#summaryPanel").hidden = true; $("#mailPanel").hidden = true; $("#cards").innerHTML = "";
-  ["ph-scan", "ph-ocr", "ph-tc", "ph-gc"].forEach((p) => setPhase(p, 0, 0, "—"));
+  ["ph-scan", "ph-ocr", "ph-tc", "ph-gc", "ph-ai"].forEach((p) => setPhase(p, 0, 0, "—"));
+  $("#aiPanel").hidden = true;
   const ticker = $("#ticker");
-  ticker.textContent = "Chargement des moteurs…";
+  ticker.textContent = "Chargement des moteurs (environ 45 Mo la première fois)…";
   let scanner;
   try {
     GC.start().catch(() => {});
-    await OCR.start();
+    await OCR.start(); await OCR.reset();
     scanner = new Scanner(); await scanner.ready();
     const step = parseFloat($("#step").value);
     const times = []; for (let t = 0.04; t < S.dur; t += step) times.push(t);
-    const samples = []; let lastRef = null; const jobs = []; let ocrDone = 0, ocrTotal = 0;
-    setPhase("ph-scan", 0, times.length);
+    const samples = []; let lastSig = null, lastSample = null, read = 0;
+    setPhase("ph-scan", 0, times.length); setPhase("ph-ocr", 0, times.length);
+    // lecture en flux : pendant que PaddleOCR lit une image, on décode la suivante
+    let inflight = null, prevLines = [];
+    const tol = 0.006 * Math.max(scanner.cw, scanner.ch);
+    const finish = async (job) => {
+      const raw = await job.promise; const s = job.s;
+      // une incrustation reste fixe ; une ligne du décor se déplace avec la caméra d'une image à l'autre
+      const lines = raw.filter((l) => {
+        const same = prevLines.filter((p) => related(p.text, l.text));
+        if (!same.length) return true;
+        const fixed = same.some((p) => Math.abs(p.x0 - l.x0) <= tol && Math.abs(p.y0 - l.y0) <= tol && Math.abs(p.y1 - l.y1) <= tol);
+        return fixed;
+      });
+      prevLines = raw;
+      const paras = groupLines(lines);
+      s.paras = paras.map((p) => ({ box: scanner.norm(p), mh: p.mh, thumb: scanner.thumb(job.img, p), lines: p.lines.map((l) => ({ words: l.words })) }));
+      read++; setPhase("ph-ocr", read, times.length);
+      const txt = paras.map((p) => p.lines.map((l) => l.words.map((w) => w.text).join(" ")).join(" / ")).join(" · ");
+      if (txt) ticker.innerHTML = `<span class="mono">${fmtTC(s.t, S.fps)}</span> · <q>${esc(txt)}</q>`;
+    };
     for (let i = 0; i < times.length; i++) {
       if (S.stop) break;
       await seek(scanner.v, times[i]);
       const img = scanner.grab();
-      const m = textMask(img.data, scanner.cw, scanner.ch, scanner.P);
-      const ft = findText(m, scanner.cw, scanner.ch, scanner.P);
       const s = { t: times[i], paras: null, ref: null };
-      const mh = ft.lines.length ? ft.lines[0].mh : (lastRef && lastRef.mh) || 20;
-      const changed = !lastRef ? ft.lines.length > 0 : (ft.lines.length === 0 && lastRef.n === 0) ? false : maskDiff(ft.clean, lastRef.clean) > Math.max(60, 0.25 * mh * mh);
-      if (!changed && lastRef) { s.ref = lastRef.sample; }
-      else if (ft.paras.length === 0) { s.paras = []; lastRef = { clean: ft.clean, n: 0, mh, sample: s }; }
+      const sig = thumbSig(img);
+      if (lastSig && lastSample && sigDiff(sig, lastSig) < 1.6) { s.ref = lastSample; read++; }
       else {
-        s.paras = ft.paras.map((p) => ({ box: scanner.norm(p), mh: p.mh, thumb: scanner.thumb(p), lines: p.lines.map(() => null) }));
-        ft.paras.forEach((p, pi) => p.lines.forEach((l, li) => {
-          const cv = scanner.lineCanvas(ft.clean, l); ocrTotal++;
-          jobs.push(OCR.read(cv).then((r) => {
-            s.paras[pi].lines[li] = r; ocrDone++; setPhase("ph-ocr", ocrDone, ocrTotal);
-            const txt = r.words.map((w) => w.text).join(" ");
-            if (txt) ticker.innerHTML = `<span class="mono">${fmtTC(s.t, S.fps)}</span> · <q>${esc(txt)}</q>`;
-          }, () => { s.paras[pi].lines[li] = { words: [], conf: 0 }; ocrDone++; }));
-        }));
-        lastRef = { clean: ft.clean, n: ft.lines.length, mh, sample: s };
+        if (inflight) { await finish(inflight); inflight = null; }
+        inflight = { s, img, promise: OCR.read(img) };
+        lastSig = sig; lastSample = s;
       }
       samples.push(s);
-      setPhase("ph-ocr", ocrDone, ocrTotal);
-      if (i % 3 === 0) { setPhase("ph-scan", i + 1, times.length); await sleep(0); }
+      if (i % 3 === 0) { setPhase("ph-scan", i + 1, times.length); setPhase("ph-ocr", read, times.length); await sleep(0); }
     }
-    setPhase("ph-scan", samples.length, times.length);
-    ticker.textContent = "Fin de la reconnaissance des textes…";
-    await Promise.all(jobs);
-    setPhase("ph-ocr", ocrTotal, ocrTotal);
+    if (inflight) await finish(inflight);
+    for (const s of samples) if (s.ref && !s.ref.paras) s.ref = null;
+    setPhase("ph-scan", samples.length, times.length); setPhase("ph-ocr", times.length, times.length);
 
     // ---- Construction des textes (pistes) ----
     const tracks = buildTracks(samples, step);
@@ -841,6 +884,11 @@ async function runAnalysis() {
     ticker.textContent = "Relecture orthographe, grammaire et ponctuation…";
     await checkTracks(tracks);
     setPhase("ph-gc", 1, 1, `${tracks.length} textes`);
+    if (claudeAvailable() && $("#useClaude").checked && !S.stop && tracks.length) {
+      setPhase("ph-ai", 0, 1, "en cours…"); ticker.textContent = "Relecture par Claude…";
+      const ok = await claudeReview(tracks);
+      setPhase("ph-ai", ok ? 1 : 0, 1, ok ? "terminée" : "non faite");
+    } else setPhase("ph-ai", 1, 1, "désactivée");
     S.tracks = tracks;
     $("#stTime").textContent = fmtDur(performance.now() - t0);
     ticker.textContent = S.stop ? "Analyse arrêtée : résultats partiels." : "Analyse terminée.";
@@ -927,6 +975,7 @@ function buildTracks(samples, step) {
     const tIn = samples[tr.firstSi].t, tOut = tr.lastSi + 1 < samples.length ? samples[tr.lastSi + 1].t : S.dur;
     tracks.push({
       id: "t" + Math.random().toString(36).slice(2, 9), firstSi: tr.firstSi, lastSi: tr.lastSi, tIn, tOut, box: tr.box, cands,
+      obsBoxes: tr.obs.map((o) => o.box), nObs: tr.obs.length,
       text: ref.text, ocrText: ref.text, spans: ref.spans, conf: ref.conf, thumb: ref.thumb, issues: [], edited: false
     });
   }
@@ -1035,7 +1084,22 @@ async function checkTracks(tracks) {
     const b = best.get(ti); if (!b) return;
     if (!t.edited) Object.assign(t, { text: b.c.text, ocrText: b.c.text, spans: b.c.spans, conf: b.c.conf, thumb: b.c.thumb || t.thumb });
     applyCheck(t, b.r);
+    if (!t.edited && t.decor == null) {
+      const unknown = b.r.spell.filter((e) => !S.dict.has(e.sValue.toLowerCase())).length;
+      const why = decorReason(t, unknown);
+      if (why) { t.decor = true; t.decorWhy = why; }
+    }
   });
+}
+/* Écarte les textes qui ne sont probablement pas des incrustations : décor filmé, bribes illisibles. */
+function decorReason(t, unknown) {
+  const words = t.text.split(/\s+/).filter((w) => /[A-Za-zÀ-ÖØ-öø-ÿŒœ]/.test(w)).length;
+  const dur = t.tOut - t.tIn;
+  if (!words) return "aucun mot lisible";
+  if (unknown / words > 0.5 && (t.conf < 85 || dur < 0.8)) return "mots illisibles ou inconnus";
+  if (!/[a-zà-ÿœ]/.test(t.text) && words <= 3 && dur < 1.5) return "sigle ou enseigne affiché brièvement";
+  if (t.nObs === 1 && t.conf < 90 && words <= 2) return "lu sur une seule image";
+  return "";
 }
 /* Règles complémentaires : fautes fréquentes en sous-titrage que Grammalecte laisse passer. */
 const EXTRA_RULES = [
@@ -1055,11 +1119,69 @@ function extraRules(text) {
   }
   return out;
 }
+/* ============================================================
+   Relecture par Claude (route protégée du site : /api/coquille)
+   ============================================================ */
+function claudeAvailable() { return /^https?:$/.test(location.protocol) && !/claudeusercontent|claude\.ai/.test(location.hostname); }
+function aiAuthHeader() {
+  const pass = store.get("aiPass", ""), user = store.get("aiUser", "");
+  if (!pass) return {};
+  const bytes = new TextEncoder().encode(`${user}:${pass}`); let bin = ""; bytes.forEach((b) => (bin += String.fromCharCode(b)));
+  return { Authorization: "Basic " + btoa(bin) };
+}
+const AI_CAT = { orthographe: "spell", grammaire: "gram", conjugaison: "gram", ponctuation: "punc", typographie: "typo", coherence: "typo", style: "style" };
+const AI_CERT = { sur: "Sûr", probable: "Probable", oral: "Oral, à arbitrer", lecture: "Peut-être une erreur de lecture" };
+async function claudeReview(tracks) {
+  setChip("chipAi", "loading", "Claude : relecture…");
+  const name = S.file ? S.file.name.replace(/\.[^.]+$/, "") : "";
+  const texts = tracks.filter((t) => !t.decor).map((t) => ({ id: t.id, tc: fmtTC(t.tIn, S.fps), text: t.text }));
+  let res;
+  try {
+    res = await fetch("/api/coquille", { method: "POST", headers: { "Content-Type": "application/json", ...aiAuthHeader() }, body: JSON.stringify({ video: name, texts }) });
+  } catch (e) { return aiFail("Le site ne répond pas. Vérifie ta connexion, puis relance la relecture."); }
+  if (res.status === 401) return aiFail("Le site demande son mot de passe pour utiliser Claude.", true);
+  let data = null; try { data = await res.json(); } catch (e) { /* réponse vide */ }
+  if (!res.ok || !data || !Array.isArray(data.results)) return aiFail((data && data.error) || `Erreur du serveur (${res.status}).`);
+  const byId = new Map(data.results.map((r) => [r.id, r]));
+  for (const t of tracks) {
+    const r = byId.get(t.id); if (!r) continue;
+    if (r.decor) { t.decor = true; t.decorWhy = "Claude le considère comme un texte du décor"; }
+    t.ai = (r.issues || []).filter((x) => x && typeof x.extrait === "string");
+    t.aiText = t.text;
+  }
+  // réapplique la relecture locale + Claude sur chaque texte
+  const gc = await gcTexts(tracks.map((t) => t.text));
+  tracks.forEach((t, i) => applyCheck(t, gc[i]));
+  setChip("chipAi", "ready", "Claude : relecture faite");
+  $("#aiPanel").hidden = true;
+  return true;
+}
+function aiFail(msg, auth) {
+  setChip("chipAi", "error", auth ? "Claude : mot de passe requis" : "Claude : erreur");
+  $("#aiPanel").hidden = false; $("#aiMsg").textContent = msg + (auth ? "" : " Les résultats de Grammalecte restent affichés.");
+  $("#aiForm").hidden = !auth;
+  return false;
+}
+/* Positionne une remarque de Claude dans le texte (copie exacte, sinon en ignorant la casse et les retours à la ligne). */
+function locate(text, extrait) {
+  if (!extrait) return -1;
+  let i = text.indexOf(extrait); if (i >= 0) return i;
+  const flat = text.replace(/\n/g, " "); i = flat.indexOf(extrait.replace(/\n/g, " ")); if (i >= 0) return i;
+  return flat.toLowerCase().indexOf(extrait.replace(/\n/g, " ").toLowerCase());
+}
 function applyCheck(t, r) {
   const prev = new Map(t.issues.map((i) => [i.key, i]));
   const list = [];
+  if (t.ai && t.aiText === t.text) {
+    for (const x of t.ai) {
+      const s = locate(t.text, x.extrait); const len = x.extrait.length;
+      const alts = [x.remplacement, ...(Array.isArray(x.alternatives) ? x.alternatives : [])].filter((v, k, a) => typeof v === "string" && a.indexOf(v) === k && v !== x.extrait);
+      list.push({ kind: "ai", src: "claude", cat: AI_CAT[x.type] || "gram", s: s < 0 ? 0 : s, e: s < 0 ? 0 : s + len, word: x.extrait, msg: x.explication || "", sugg: alts, rule: "claude-" + (x.type || ""), cert: x.certitude, whole: s < 0 });
+    }
+  }
   for (const e of r.gramm) {
     if (S.ignoredRules.has(e.sRuleId)) continue;
+    if (list.some((g) => g.src === "claude" && g.s < e.nEnd && e.nStart < g.e)) continue;
     list.push({ kind: "gram", cat: catOf(e.sType), s: e.nStart, e: e.nEnd, word: r.text.slice(e.nStart, e.nEnd), msg: e.sMessage, sugg: e.aSuggestions.filter(Boolean), url: e.URL, rule: e.sRuleId });
   }
   for (const x of extraRules(r.text)) if (!list.some((g) => g.s < x.e && x.s < g.e)) list.push(x);
@@ -1072,7 +1194,7 @@ function applyCheck(t, r) {
   t.issues = list.map((x) => {
     const key = `${x.rule}|${x.s}|${x.word}`;
     const old = prev.get(key);
-    const unsure = !t.edited && (t.spans || []).some((sp) => sp.s < x.e && x.s < sp.e && sp.conf < 72);
+    const unsure = x.cert === "lecture" || (!t.edited && (t.spans || []).some((sp) => sp.s < x.e && x.s < sp.e && sp.conf < 72));
     return Object.assign(x, { key, unsure, status: old ? old.status : "pending", repl: old ? old.repl : null });
   });
 }
@@ -1081,6 +1203,7 @@ function applyCheck(t, r) {
    Rendu des fiches
    ============================================================ */
 function trackState(t) {
+  if (t.decor) return "decor";
   if (t.issues.some((i) => i.status === "pending")) return "pending";
   if (t.issues.some((i) => i.status === "accepted")) return "done";
   return t.issues.length ? "done" : "clean";
@@ -1088,7 +1211,7 @@ function trackState(t) {
 function correctedText(t) {
   let out = t.text;
   const acc = t.issues.filter((i) => i.status === "accepted").sort((a, b) => b.s - a.s);
-  for (const i of acc) out = out.slice(0, i.s) + i.repl + out.slice(i.e);
+  for (const i of acc) out = i.whole ? i.repl : out.slice(0, i.s) + i.repl + out.slice(i.e);
   return out;
 }
 function markedHTML(t, curKey) {
@@ -1108,11 +1231,11 @@ function renderAll() {
   const box = $("#cards");
   const list = S.tracks.filter((t) => {
     const st = trackState(t);
-    return S.filter === "all" ? true : S.filter === "pending" ? st === "pending" : st === "done";
+    return S.filter === "all" ? st !== "decor" : S.filter === "decor" ? st === "decor" : S.filter === "pending" ? st === "pending" : st === "done";
   });
   box.innerHTML = "";
   if (!list.length) {
-    const msg = S.filter === "pending" ? (S.tracks.length ? "Plus aucune faute à traiter. Le mail est prêt plus bas." : "Aucun texte trouvé dans la zone lue. Essaie « Image entière » ou un autre réglage de couleur.") : "Rien ici pour l'instant.";
+    const msg = S.filter === "pending" ? (S.tracks.length ? "Plus aucune faute à traiter. Le mail est prêt plus bas." : "Aucun texte trouvé dans la zone lue. Essaie « Image entière ».") : "Rien ici pour l'instant.";
     box.innerHTML = `<div class="empty">${esc(msg)}</div>`;
   }
   for (const t of list) box.appendChild(renderCard(t));
@@ -1120,13 +1243,14 @@ function renderAll() {
   $$("[data-filter]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.filter === S.filter)));
 }
 function updateStats() {
-  $("#stTexts").textContent = S.tracks.length;
-  $("#stPending").textContent = S.tracks.reduce((n, t) => n + t.issues.filter((i) => i.status === "pending").length, 0);
+  $("#stTexts").textContent = S.tracks.filter((t) => !t.decor).length;
+  $("#stPending").textContent = S.tracks.reduce((n, t) => n + (t.decor ? 0 : t.issues.filter((i) => i.status === "pending").length), 0);
   $("#stFixed").textContent = S.tracks.reduce((n, t) => n + t.issues.filter((i) => i.status === "accepted").length, 0);
   const p = S.tracks.filter((t) => trackState(t) === "pending").length, d = S.tracks.filter((t) => trackState(t) === "done").length;
   $('[data-filter="pending"]').textContent = `À relire (${p})`;
   $('[data-filter="done"]').textContent = `Traités (${d})`;
-  $('[data-filter="all"]').textContent = `Tous les textes (${S.tracks.length})`;
+  $('[data-filter="all"]').textContent = `Tous les textes (${S.tracks.filter((t) => !t.decor).length})`;
+  $('[data-filter="decor"]').textContent = `Écartés (${S.tracks.filter((t) => t.decor).length})`;
 }
 function tcButton(t) {
   const b = document.createElement("button"); b.type = "button"; b.className = "tc";
@@ -1147,8 +1271,17 @@ function renderCard(t) {
   const p = document.createElement("p"); p.className = "ptext"; p.innerHTML = markedHTML(t, t.cur);
   p.addEventListener("click", (e) => { const m = e.target.closest("mark"); if (!m) return; t.cur = m.dataset.key; const el = $(`#card-${t.id} .issue[data-key="${CSS.escape(t.cur)}"]`); if (el) el.scrollIntoView({ block: "nearest", behavior: "smooth" }); });
   body.appendChild(p);
-  for (const i of t.issues) body.appendChild(renderIssue(t, i));
-  if (!t.issues.length) { const ok = document.createElement("p"); ok.className = "status-line"; ok.textContent = "Aucune faute détectée."; body.appendChild(ok); }
+  if (!t.decor) for (const i of t.issues) body.appendChild(renderIssue(t, i));
+  if (t.decor) {
+    const dl = document.createElement("div"); dl.className = "row";
+    dl.innerHTML = `<span class="status-line">Écarté : ${esc(t.decorWhy || "texte du décor")}.</span>`;
+    const ub = document.createElement("button"); ub.type = "button"; ub.className = "btn sm ghost"; ub.textContent = "C'est une incrustation";
+    ub.addEventListener("click", async () => {
+      t.decor = false; ub.disabled = true;
+      if (claudeAvailable() && $("#useClaude").checked && !t.ai) await claudeReview([t]);
+      renderAll();
+    }); dl.appendChild(ub); body.appendChild(dl);
+  } else if (!t.issues.length) { const ok = document.createElement("p"); ok.className = "status-line"; ok.textContent = "Aucune faute détectée."; body.appendChild(ok); }
   // corriger la lecture OCR
   const act = document.createElement("div"); act.className = "actions";
   const eb = document.createElement("button"); eb.type = "button"; eb.className = "btn sm ghost"; eb.textContent = "Corriger la lecture";
@@ -1162,7 +1295,9 @@ function renderCard(t) {
     ok.addEventListener("click", async () => {
       ok.disabled = true; ok.textContent = "Vérification…";
       t.text = box.querySelector("textarea").value.replace(/[ \t]+/g, " ").replace(/ *\n+ */g, "\n").trim(); t.edited = true; t.issues = [];
-      const [r] = await gcTexts([t.text]); applyCheck(t, r); rerenderCard(t);
+      const [r] = await gcTexts([t.text]); applyCheck(t, r);
+      if (claudeAvailable() && $("#useClaude").checked) await claudeReview([t]);
+      rerenderCard(t);
     });
     body.insertBefore(box, act);
   });
@@ -1175,7 +1310,7 @@ function renderCard(t) {
 function rerenderCard(t) { const old = $("#card-" + t.id); if (old) old.replaceWith(renderCard(t)); updateStats(); renderMail(); }
 function renderIssue(t, i) {
   const d = document.createElement("div"); d.className = "issue"; d.dataset.status = i.status; d.dataset.key = i.key;
-  const head = `<div class="ihead"><span class="cat" data-cat="${i.cat}">${CATS[i.cat]}</span><span class="word">${esc(i.word) || "∅"}</span>${i.unsure ? '<span class="uncertain" title="Le texte a été lu avec une faible confiance : vérifie la vignette.">Lecture incertaine</span>' : ""}</div>`;
+  const head = `<div class="ihead"><span class="cat" data-cat="${i.cat}">${CATS[i.cat]}</span><span class="word">${esc(i.word) || "∅"}</span><span class="src" data-src="${i.src === "claude" ? "claude" : "gc"}">${i.src === "claude" ? "Claude" + (i.cert && AI_CERT[i.cert] ? " · " + AI_CERT[i.cert] : "") : i.kind === "spell" ? "Dictionnaire" : "Grammalecte"}</span>${i.unsure ? '<span class="uncertain" title="Le texte a été lu avec une faible confiance : vérifie la vignette.">Lecture incertaine</span>' : ""}</div>`;
   const why = `<p class="why">${esc(i.msg)}${i.url ? ` <a href="${esc(i.url)}" target="_blank" rel="noopener">En savoir plus</a>` : ""}</p>`;
   d.innerHTML = head + why;
   if (i.status === "pending") {
@@ -1223,7 +1358,7 @@ function showInPlayer(t) {
    Mail
    ============================================================ */
 function corrections() {
-  return S.tracks.filter((t) => t.issues.some((i) => i.status === "accepted")).map((t) => ({
+  return S.tracks.filter((t) => !t.decor && t.issues.some((i) => i.status === "accepted")).map((t) => ({
     t, before: t.text.replace(/\n/g, " "), after: correctedText(t).replace(/\n/g, " "),
     why: t.issues.filter((i) => i.status === "accepted").map((i) => `${CATS[i.cat]} : « ${i.word || "∅"} » → « ${i.repl || "∅"} »`)
   }));
@@ -1367,7 +1502,6 @@ $("#drawBtn").addEventListener("click", () => {
   $("#drawLayer").hidden = false; $("#drawBtn").setAttribute("aria-pressed", "true"); $$("[data-roi]").forEach((x) => x.setAttribute("aria-pressed", "false"));
   toast("Trace un rectangle sur la vidéo autour des textes.");
 });
-$$("[data-tone]").forEach((b) => b.addEventListener("click", () => { S.tone = b.dataset.tone; $$("[data-tone]").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); }));
 $$("[data-filter]").forEach((b) => b.addEventListener("click", () => { S.filter = b.dataset.filter; renderAll(); }));
 $("#player").addEventListener("timeupdate", (e) => { $("#tcNow").textContent = fmtTC(e.target.currentTime, S.fps); });
 $("#player").addEventListener("play", () => { $("#hitBox").hidden = true; });
@@ -1384,6 +1518,18 @@ $("#copyTable").addEventListener("click", () => {
 $("#dictAddBtn").addEventListener("click", () => { addDict($("#dictAdd").value); $("#dictAdd").value = ""; });
 $("#dictAdd").addEventListener("keydown", (e) => { if (e.key === "Enter") { addDict(e.target.value); e.target.value = ""; } });
 renderRules(); renderDict();
+$("#claudeOpt").hidden = !claudeAvailable();
+$("#useClaude").checked = store.get("useClaude", true);
+$("#useClaude").addEventListener("change", (e) => store.set("useClaude", e.target.checked));
+if (!claudeAvailable()) setChip("chipAi", "idle", "Claude : disponible sur eulst.app");
+$("#aiUser").value = store.get("aiUser", "");
+$("#aiForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  store.set("aiUser", $("#aiUser").value.trim()); store.set("aiPass", $("#aiPass").value);
+  const b = $("#aiGo"); b.disabled = true; b.textContent = "Relecture…";
+  const ok = await claudeReview(S.tracks); b.disabled = false; b.textContent = "Relire avec Claude";
+  if (ok) { S.filter = "pending"; renderAll(); setPhase("ph-ai", 1, 1, "terminée"); toast("Relecture Claude ajoutée."); }
+});
 
 /* Exemple affiché avant le premier chargement */
 (function example() {

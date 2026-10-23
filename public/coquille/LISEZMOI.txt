@@ -1,15 +1,18 @@
 COQUILLE — relecture des textes incrustés dans une vidéo
 =========================================================
 
-Page web autonome : tout tourne dans le navigateur, sans serveur ni API.
-La vidéo n'est jamais envoyée sur Internet.
+La lecture (OCR) et la relecture Grammalecte tournent dans le navigateur.
+La vidéo n'est jamais envoyée sur Internet. L'option « Relecture par Claude »
+envoie seulement les textes lus à la route /api/coquille du site (protégée
+par le mot de passe du site).
 
 Contenu
 -------
 index.html                      l'application (interface + analyse d'image)
-vendor/tesseract/               Tesseract.js 7.0.0 (OCR, licence Apache 2.0)
-  tesseract-core-*-lstm.wasm.js moteur OCR WebAssembly (avec / sans SIMD)
-  lang/fra.traineddata.json     modèle français (tessdata_best int, gzip en base64)
+vendor/paddle/                  PaddleOCR PP-OCRv6 small (détection + lecture,
+                                licence Apache 2.0, modèles ONNX issus d'OnnxOCR)
+  paddle-worker.js              worker de lecture (détection DBNet + CTC)
+vendor/ort/                     ONNX Runtime Web 1.30.0 (licence MIT)
 grammalecte/                    Grammalecte 2.3.1 compilé depuis les sources
                                 officielles (github.com/algoo/grammalecte),
                                 licence GPL v3 (voir LICENSE-GPL3.txt)
