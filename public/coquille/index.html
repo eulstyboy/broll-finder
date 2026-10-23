@@ -1,0 +1,1405 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Coquille</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Relecture des textes à l'écran d'une vidéo : OCR, orthographe, grammaire et ponctuation, en local.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)} body{margin:0} img{max-width:100%} [hidden]{display:none!important}
+
+/* Layout : établi de relecture — colonne gauche = moniteur vidéo collant, colonne droite = feuillets de corrections. */
+:root {
+  --bg: #e9ecef;
+  --surface: #ffffff;
+  --surface-2: #f4f6f8;
+  --ink: #15181d;
+  --muted: #5b6371;
+  --line: #d3d8df;
+  --accent: #c8102e;       /* rouge correcteur */
+  --accent-ink: #ffffff;
+  --accent-soft: #fbe4e7;
+  --ok: #17784a;
+  --ok-soft: #dcf1e6;
+  --c-spell: #c8102e;
+  --c-gram: #3349b8;
+  --c-typo: #9a5b00;
+  --c-punc: #0b6f6a;
+  --c-style: #6b5a8e;
+  --focus: #3349b8;
+  --monitor: #0e1013;
+  --f-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --r: 10px;
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121418; --surface: #1b1e24; --surface-2: #22262d; --ink: #e7e9ee; --muted: #9aa2ae; --line: #2f343c;
+    --accent: #ff5468; --accent-ink: #1a0508; --accent-soft: #3a1820; --ok: #4cc38a; --ok-soft: #173326;
+    --c-spell: #ff5468; --c-gram: #8ea0ff; --c-typo: #f0b45a; --c-punc: #4fd1c5; --c-style: #b9a6e6; --focus: #8ea0ff; --monitor: #08090b;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121418; --surface: #1b1e24; --surface-2: #22262d; --ink: #e7e9ee; --muted: #9aa2ae; --line: #2f343c;
+  --accent: #ff5468; --accent-ink: #1a0508; --accent-soft: #3a1820; --ok: #4cc38a; --ok-soft: #173326;
+  --c-spell: #ff5468; --c-gram: #8ea0ff; --c-typo: #f0b45a; --c-punc: #4fd1c5; --c-style: #b9a6e6; --focus: #8ea0ff; --monitor: #08090b;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+a.btn { text-decoration: none; color: inherit; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 var(--s7);
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.mono { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+
+/* En-tête */
+.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--s3) var(--s5); padding-block: var(--s5) var(--s4); max-width: 1320px; margin-inline: auto; }
+.brand { display: flex; align-items: baseline; gap: var(--s3); flex-wrap: wrap; }
+.brand h1 { font-family: var(--f-display); font-weight: 700; font-size: clamp(30px, 4vw, 40px); letter-spacing: -0.02em; margin: 0; line-height: 1; }
+.brand h1 .caret { color: var(--accent); width: 0.42em; height: 0.5em; margin-left: 1px; vertical-align: -0.12em; }
+.brand p { margin: 0; color: var(--muted); }
+.engines { display: flex; gap: var(--s2); flex-wrap: wrap; }
+.chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--muted); white-space: nowrap; }
+.chip i { width: 7px; height: 7px; border-radius: 50%; background: var(--line); display: inline-block; }
+.chip[data-s="loading"] i { background: var(--c-typo); }
+.chip[data-s="ready"] i { background: var(--ok); }
+.chip[data-s="error"] i { background: var(--accent); }
+
+/* Grille principale */
+.wrap { max-width: 1320px; margin-inline: auto; display: grid; grid-template-columns: minmax(300px, 420px) minmax(0, 1fr); gap: var(--s5); align-items: start; }
+@media (max-width: 900px) { .wrap { grid-template-columns: minmax(0, 1fr); } }
+.left { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); display: grid; gap: var(--s4); min-width: 0; }
+@media (max-width: 900px) { .left { position: static; } }
+.right { display: grid; gap: var(--s4); min-width: 0; }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: var(--s4); min-width: 0; }
+.panel h2 { font-family: var(--f-display); font-weight: 600; font-size: 19px; margin: 0 0 var(--s3); letter-spacing: -0.01em; text-wrap: balance; }
+.eyebrow { font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+
+/* Moniteur */
+.monitor { background: var(--monitor); border-radius: var(--r); overflow: hidden; position: relative; display: grid; place-items: center; min-height: 220px; }
+.stage { position: relative; display: inline-block; max-width: 100%; line-height: 0; }
+.stage video { display: block; max-width: 100%; max-height: 62vh; width: auto; height: auto; }
+.roi { position: absolute; border: 2px solid var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); pointer-events: none; }
+.roi span { position: absolute; top: -1px; left: -1px; transform: translateY(-100%); background: var(--accent); color: var(--accent-ink); font: 600 11px/1 var(--f-body); padding: 4px 6px; border-radius: 4px 4px 0 0; white-space: nowrap; letter-spacing: 0.02em; }
+.hit { position: absolute; border: 2px solid #ffd23f; box-shadow: 0 0 0 9999px rgba(0,0,0,0.35); pointer-events: none; border-radius: 3px; }
+.drawlayer { position: absolute; inset: 0; cursor: crosshair; touch-action: none; }
+.drop { display: grid; place-items: center; gap: var(--s3); text-align: center; padding: var(--s6) var(--s4); color: #c9ced6; min-height: 300px; width: 100%; border: 2px dashed #3a4049; border-radius: var(--r); cursor: pointer; }
+.drop.over { border-color: var(--accent); background: rgba(200,16,46,0.08); }
+.drop strong { font-family: var(--f-display); font-size: 20px; color: #f1f3f6; font-weight: 600; }
+.drop small { color: #9aa2ae; }
+.tcbar { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.tcbar .mono { color: var(--ink); font-size: 15px; }
+
+.row { display: flex; gap: var(--s2); flex-wrap: wrap; align-items: center; }
+.btn { appearance: none; border: 1px solid var(--line); background: var(--surface); padding: 7px 12px; border-radius: 8px; cursor: pointer; font-size: 14px; line-height: 1.2; display: inline-flex; align-items: center; gap: 6px; }
+.btn:hover { border-color: var(--muted); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.btn.primary:hover { filter: brightness(1.06); }
+.btn.big { padding: 11px 18px; font-size: 15.5px; }
+.btn.ghost { background: transparent; }
+.btn.sm { padding: 4px 9px; font-size: 13px; }
+.btn[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.seg { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { flex: 1 1 auto; border: 0; border-right: 1px solid var(--line); border-radius: 0; background: var(--surface); padding: 7px 8px; cursor: pointer; font-size: 13px; white-space: nowrap; }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+
+.field { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+.field select, .field input[type=text], .field input[type=email], .field textarea { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 7px 9px; color: var(--ink); font-size: 14px; min-width: 0; width: 100%; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--s3); }
+.check { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; color: var(--ink); }
+.check input { margin-top: 3px; accent-color: var(--accent); }
+.check small { display: block; color: var(--muted); font-size: 12.5px; }
+details.settings summary { cursor: pointer; font-weight: 600; font-size: 14px; list-style: none; display: flex; justify-content: space-between; align-items: center; }
+details.settings summary::-webkit-details-marker { display: none; }
+details.settings summary::after { content: "+"; font-family: var(--f-mono); color: var(--muted); }
+details.settings[open] summary::after { content: "–"; }
+details.settings .inner { display: grid; gap: var(--s4); margin-top: var(--s4); }
+.hint { font-size: 12.5px; color: var(--muted); margin: 0; }
+
+/* Progression */
+.progress { display: grid; gap: var(--s3); }
+.phase { display: grid; grid-template-columns: 1fr auto; gap: 4px var(--s3); font-size: 14px; align-items: center; }
+.phase .bar { grid-column: 1 / -1; height: 6px; background: var(--surface-2); border-radius: 99px; overflow: hidden; border: 1px solid var(--line); }
+.phase .bar b { display: block; height: 100%; width: 0; background: var(--ink); transition: width 0.2s; }
+.phase[data-done="1"] .bar b { background: var(--ok); }
+.phase .n { color: var(--muted); font-size: 13px; }
+.ticker { font-size: 13px; color: var(--muted); border-top: 1px dashed var(--line); padding-top: var(--s2); min-height: 2.8em; overflow-wrap: anywhere; }
+.ticker q { color: var(--ink); font-style: italic; }
+
+/* Résumé + filtres */
+.summary { display: flex; flex-wrap: wrap; gap: var(--s4) var(--s6); align-items: baseline; }
+.stat b { font-family: var(--f-display); font-size: 28px; font-weight: 700; display: block; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.stat span { color: var(--muted); font-size: 13px; }
+.stat.alert b { color: var(--accent); }
+.stat.good b { color: var(--ok); }
+.tabs { display: flex; gap: var(--s2); flex-wrap: wrap; align-items: center; }
+
+/* Fiches */
+.cards { display: grid; gap: var(--s3); }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); display: grid; grid-template-columns: 148px minmax(0, 1fr); gap: var(--s4); padding: var(--s4); border-left: 4px solid var(--line); }
+.card[data-state="pending"] { border-left-color: var(--accent); }
+.card[data-state="done"] { border-left-color: var(--ok); }
+.card[data-state="clean"] { border-left-color: var(--line); }
+@media (max-width: 560px) { .card { grid-template-columns: minmax(0, 1fr); } }
+.thumbcol { display: grid; gap: var(--s2); align-content: start; }
+.thumb { width: 100%; background: var(--monitor); border-radius: 6px; display: block; aspect-ratio: auto; max-width: 100%; }
+.tc { appearance: none; border: 1px solid var(--line); background: var(--surface-2); border-radius: 6px; padding: 5px 7px; cursor: pointer; text-align: left; font-family: var(--f-mono); font-size: 12.5px; line-height: 1.35; color: var(--ink); font-variant-numeric: tabular-nums; }
+.tc:hover { border-color: var(--ink); }
+.tc small { color: var(--muted); display: block; font-family: var(--f-body); font-size: 11px; }
+.body { display: grid; gap: var(--s3); min-width: 0; }
+.ptext { font-size: 17px; line-height: 1.55; overflow-wrap: anywhere; margin: 0; white-space: pre-line; }
+.ptext mark { background: var(--accent-soft); color: inherit; border-bottom: 2px solid var(--accent); padding: 0 1px; border-radius: 2px; cursor: pointer; }
+.ptext mark[data-cat="gram"] { border-bottom-color: var(--c-gram); background: color-mix(in srgb, var(--c-gram) 14%, transparent); }
+.ptext mark[data-cat="typo"] { border-bottom-color: var(--c-typo); background: color-mix(in srgb, var(--c-typo) 16%, transparent); }
+.ptext mark[data-cat="punc"] { border-bottom-color: var(--c-punc); background: color-mix(in srgb, var(--c-punc) 16%, transparent); }
+.ptext mark[data-cat="style"] { border-bottom-color: var(--c-style); background: color-mix(in srgb, var(--c-style) 16%, transparent); }
+.ptext mark.cur { outline: 2px solid var(--ink); outline-offset: 1px; }
+.ptext del { color: var(--accent); text-decoration-thickness: 2px; }
+.ptext ins { color: var(--ok); text-decoration: none; border-bottom: 2px solid var(--ok); background: var(--ok-soft); padding: 0 1px; }
+.ptext .dim { color: var(--muted); }
+.issue { border: 1px solid var(--line); border-radius: 8px; padding: var(--s3); display: grid; gap: var(--s2); background: var(--surface-2); }
+.issue[data-status="accepted"] { background: var(--ok-soft); border-color: color-mix(in srgb, var(--ok) 40%, var(--line)); }
+.issue[data-status="ignored"], .issue[data-status="ocr"] { opacity: 0.62; }
+.ihead { display: flex; gap: var(--s2); align-items: center; flex-wrap: wrap; }
+.cat { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; padding: 2px 7px; border-radius: 4px; color: #fff; background: var(--c-spell); }
+.cat[data-cat="gram"] { background: var(--c-gram); }
+.cat[data-cat="typo"] { background: var(--c-typo); }
+.cat[data-cat="punc"] { background: var(--c-punc); }
+.cat[data-cat="style"] { background: var(--c-style); }
+:root[data-theme="dark"] .cat, .cat { color: var(--bg); }
+.word { font-family: var(--f-mono); font-size: 13.5px; background: var(--surface); border: 1px solid var(--line); padding: 1px 6px; border-radius: 4px; }
+.uncertain { font-size: 11.5px; color: var(--c-typo); border: 1px solid currentColor; border-radius: 4px; padding: 1px 6px; }
+.why { margin: 0; font-size: 14.5px; }
+.why a { color: var(--muted); font-size: 13px; }
+.sugg { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.sugg .btn { font-weight: 500; }
+.sugg .btn.chosen { background: var(--ok); color: #fff; border-color: var(--ok); }
+.custom { display: flex; gap: 6px; flex: 1 1 220px; min-width: 0; }
+.custom input { flex: 1 1 auto; min-width: 0; border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; background: var(--surface); font-size: 14px; }
+.actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.status-line { font-size: 13px; color: var(--muted); }
+.editbox { display: grid; gap: var(--s2); }
+.editbox textarea { width: 100%; min-height: 80px; border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: var(--surface); font-size: 15px; }
+.example-tag { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; color: var(--muted); border: 1px dashed var(--muted); padding: 2px 7px; border-radius: 4px; }
+.empty { color: var(--muted); padding: var(--s5); text-align: center; border: 1px dashed var(--line); border-radius: var(--r); }
+
+/* Mail */
+.mail textarea { width: 100%; min-height: 280px; font-family: var(--f-mono); font-size: 13px; line-height: 1.5; border: 1px solid var(--line); border-radius: 8px; padding: var(--s3); background: var(--surface-2); color: var(--ink); resize: vertical; }
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 9px 16px; border-radius: 8px; font-size: 14px; z-index: 50; max-width: calc(100% - 32px); }
+.dict { display: flex; flex-wrap: wrap; gap: 6px; }
+.dict span { font-size: 13px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 99px; padding: 2px 4px 2px 10px; display: inline-flex; gap: 4px; align-items: center; }
+.dict button { border: 0; background: none; cursor: pointer; color: var(--muted); font-size: 14px; padding: 0 4px; }
+.foot { max-width: 1320px; margin: var(--s6) auto 0; color: var(--muted); font-size: 12.5px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <h1>Coquille<svg class="caret" viewBox="0 0 20 24" aria-hidden="true"><path d="M3 22 L10 8 L17 22" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg></h1>
+    <p>Relecture des textes incrustés dans une vidéo</p>
+  </div>
+  <div class="engines" aria-live="polite">
+    <span class="chip" id="chipOcr" data-s="idle"><i></i>Lecture (OCR) : en attente</span>
+    <span class="chip" id="chipGc" data-s="idle"><i></i>Grammalecte : en attente</span>
+    <span class="chip"><i style="background:var(--ok)"></i>100 % local, aucun envoi</span>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="left" aria-label="Vidéo">
+    <div class="monitor" id="monitor">
+      <label class="drop" id="drop" for="file">
+        <strong>Dépose ta vidéo ici</strong>
+        <span>ou clique pour choisir un fichier</span>
+        <small>MP4 (H.264) ou MOV · rien n'est envoyé, tout est lu dans ton navigateur</small>
+      </label>
+      <input type="file" id="file" accept="video/*,.mp4,.mov,.m4v,.webm" hidden>
+      <div class="stage" id="stage" hidden>
+        <video id="player" playsinline controls preload="auto"></video>
+        <div class="roi" id="roiBox"><span>Zone lue</span></div>
+        <div class="hit" id="hitBox" hidden></div>
+        <div class="drawlayer" id="drawLayer" hidden></div>
+      </div>
+    </div>
+    <div class="panel" id="setupPanel" hidden>
+      <div class="tcbar">
+        <span id="fileInfo">—</span>
+        <span class="mono" id="tcNow">00:00:00:00</span>
+      </div>
+      <div style="height:var(--s3)"></div>
+      <div class="field">Zone de texte à lire
+        <div class="seg" role="group" aria-label="Zone">
+          <button type="button" data-roi="low" aria-pressed="true">Moitié basse</button>
+          <button type="button" data-roi="full" aria-pressed="false">Image entière</button>
+          <button type="button" id="drawBtn" aria-pressed="false">Dessiner…</button>
+        </div>
+      </div>
+      <div style="height:var(--s3)"></div>
+      <div class="grid2">
+        <label class="field" for="fps">Cadence (images/s)
+          <select id="fps">
+            <option value="23.976">23,976</option><option value="24">24</option><option value="25" selected>25</option>
+            <option value="29.97">29,97</option><option value="30">30</option><option value="50">50</option>
+            <option value="59.94">59,94</option><option value="60">60</option>
+          </select>
+        </label>
+        <label class="field" for="step">Fréquence d'analyse
+          <select id="step">
+            <option value="0.2">5 images/s (précis, lent)</option>
+            <option value="0.333" selected>3 images/s</option>
+            <option value="0.5">2 images/s (rapide)</option>
+          </select>
+        </label>
+      </div>
+      <div style="height:var(--s3)"></div>
+      <details class="settings">
+        <summary>Réglages de lecture</summary>
+        <div class="inner">
+          <div class="grid2">
+            <div class="field">Couleur du texte
+              <div class="seg" role="group" aria-label="Couleur du texte">
+                <button type="button" data-tone="light" aria-pressed="true">Clair</button>
+                <button type="button" data-tone="dark" aria-pressed="false">Foncé</button>
+              </div>
+            </div>
+          </div>
+          <label class="check"><input type="checkbox" id="refine" checked><span>Timecodes à l'image près<small>Affine l'entrée et la sortie de chaque texte (un peu plus long).</small></span></label>
+          <label class="check"><input type="checkbox" id="bigText"><span>Grands titres<small>À cocher si la vidéo contient de gros textes (titres plein écran).</small></span></label>
+          <div>
+            <p class="eyebrow" style="margin:0 0 6px">Règles vérifiées</p>
+            <div class="grid2" id="rules"></div>
+          </div>
+          <div>
+            <p class="eyebrow" style="margin:0 0 6px">Dictionnaire perso (noms propres, marques…)</p>
+            <div class="dict" id="dictList"></div>
+            <div class="row" style="margin-top:6px">
+              <input type="text" id="dictAdd" placeholder="Ajouter un mot" aria-label="Ajouter un mot au dictionnaire" style="flex:1 1 140px;min-width:0;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--surface)">
+              <button class="btn sm" type="button" id="dictAddBtn">Ajouter</button>
+            </div>
+          </div>
+        </div>
+      </details>
+      <div style="height:var(--s4)"></div>
+      <div class="row">
+        <button class="btn primary big" type="button" id="runBtn">Analyser la vidéo</button>
+        <button class="btn" type="button" id="stopBtn" hidden>Arrêter</button>
+        <button class="btn ghost" type="button" id="changeBtn">Changer de vidéo</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="right" aria-label="Résultats">
+    <div class="panel" id="progressPanel" hidden>
+      <h2>Analyse en cours</h2>
+      <div class="progress">
+        <div class="phase" id="ph-scan"><span>Lecture des images</span><span class="n mono">0 / 0</span><div class="bar"><b></b></div></div>
+        <div class="phase" id="ph-ocr"><span>Reconnaissance des textes</span><span class="n mono">0 / 0</span><div class="bar"><b></b></div></div>
+        <div class="phase" id="ph-tc"><span>Timecodes à l'image</span><span class="n mono">—</span><div class="bar"><b></b></div></div>
+        <div class="phase" id="ph-gc"><span>Relecture Grammalecte</span><span class="n mono">—</span><div class="bar"><b></b></div></div>
+        <div class="ticker" id="ticker">Préparation…</div>
+      </div>
+    </div>
+
+    <div class="panel" id="summaryPanel" hidden>
+      <div class="summary">
+        <div class="stat"><b id="stTexts">0</b><span>textes lus</span></div>
+        <div class="stat alert"><b id="stPending">0</b><span>fautes à traiter</span></div>
+        <div class="stat good"><b id="stFixed">0</b><span>corrections retenues</span></div>
+        <div class="stat"><b id="stTime" class="mono" style="font-size:22px">—</b><span>durée d'analyse</span></div>
+      </div>
+      <div style="height:var(--s4)"></div>
+      <div class="tabs" role="group" aria-label="Filtre">
+        <button class="btn sm" type="button" data-filter="pending" aria-pressed="true">À relire</button>
+        <button class="btn sm" type="button" data-filter="done" aria-pressed="false">Traités</button>
+        <button class="btn sm" type="button" data-filter="all" aria-pressed="false">Tous les textes</button>
+      </div>
+    </div>
+
+    <div class="cards" id="cards"></div>
+
+    <div class="panel mail" id="mailPanel" hidden>
+      <h2>Mail de corrections</h2>
+      <div class="grid2">
+        <label class="field" for="mailTo">Destinataire<input type="email" id="mailTo" placeholder="prenom@studio.fr"></label>
+        <label class="field" for="mailSubject">Objet<input type="text" id="mailSubject"></label>
+        <label class="field" for="mailSign">Signature<input type="text" id="mailSign" placeholder="Ton prénom"></label>
+      </div>
+      <div style="height:var(--s3)"></div>
+      <textarea id="mailBody" aria-label="Aperçu du mail" spellcheck="false"></textarea>
+      <div style="height:var(--s3)"></div>
+      <div class="row">
+        <button class="btn primary" type="button" id="copyMail">Copier le mail</button>
+        <button class="btn" type="button" id="copyTable">Copier le tableau</button>
+        <a class="btn" id="mailtoLink" href="mailto:" target="_blank" rel="noopener">Ouvrir dans Mail</a>
+        <span class="hint" id="mailHint"></span>
+      </div>
+    </div>
+  </section>
+</main>
+
+<p class="foot">Coquille lit les textes avec Tesseract (OCR) et les relit avec Grammalecte 2.3.1 (GPL v3), directement dans ton navigateur. La vidéo ne quitte jamais ton ordinateur.</p>
+
+<script src="vendor/tesseract/tesseract.min.js"></script>
+<script>
+"use strict";
+/* ============================================================
+   Utilitaires
+   ============================================================ */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const abs = (p) => new URL(p, location.href).href;
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("coquille:" + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem("coquille:" + k, JSON.stringify(v)); } catch (e) { /* stockage indisponible */ } }
+};
+function toast(msg) {
+  const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; t.setAttribute("role", "status");
+  document.body.appendChild(t); setTimeout(() => t.remove(), 2600);
+}
+function fmtTC(sec, fps) {
+  const base = Math.round(fps);
+  const f = Math.max(0, Math.round(sec * fps));
+  const ff = f % base, s = Math.floor(f / base);
+  const p = (n) => String(n).padStart(2, "0");
+  return `${p(Math.floor(s / 3600))}:${p(Math.floor(s / 60) % 60)}:${p(s % 60)}:${p(ff)}`;
+}
+function fmtDur(ms) { const s = Math.round(ms / 1000); return s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, "0")}`; }
+
+/* ============================================================
+   État
+   ============================================================ */
+const S = {
+  file: null, url: null, vw: 0, vh: 0, dur: 0, fps: 25,
+  roi: { x: 0, y: 0.5, w: 1, h: 0.5 },
+  tone: "light",
+  tracks: [], filter: "pending", running: false, stop: false,
+  dict: new Set(store.get("dict", [])),
+  ignoredRules: new Set(store.get("ignoredRules", [])),
+  rules: store.get("rules", null),
+  example: true
+};
+
+/* Règles Grammalecte proposées (les autres gardent leur valeur par défaut). */
+const RULES = [
+  { k: "typo", label: "Signes typographiques", def: true },
+  { k: "tu", label: "Traits d'union", def: true },
+  { k: "maj", label: "Majuscules", def: true },
+  { k: "virg", label: "Virgules", def: true },
+  { k: "num", label: "Nombres", def: true },
+  { k: "nbsp", label: "Espaces insécables", def: false, note: "invisible à l'image" },
+  { k: "apos", label: "Apostrophe typographique", def: false, note: "' et ’ se confondent à l'OCR" },
+  { k: "esp", label: "Espaces en trop", def: false, note: "souvent dû à l'OCR" },
+  { k: "poncfin", label: "Ponctuation finale", def: false, note: "les sous-titres sont des fragments" },
+  { k: "conf", label: "Confusions (a/à, ce/se…)", def: true },
+  { k: "bs", label: "Style (pléonasmes, populaire)", def: true }
+];
+if (!S.rules) { S.rules = {}; RULES.forEach((r) => (S.rules[r.k] = r.def)); }
+function gcOptions() {
+  const o = { html: false, md: false, latex: false, idrule: false, tab: false, ocr: false, mapos: false, unit: false };
+  RULES.forEach((r) => (o[r.k] = !!S.rules[r.k]));
+  o.pleo = o.bs;
+  return o;
+}
+
+/* Catégories affichées */
+const CATS = {
+  spell: "Orthographe", gram: "Grammaire", typo: "Typographie", punc: "Ponctuation", style: "Style"
+};
+function catOf(sType) {
+  if (["typo", "apos", "esp", "nbsp", "tab", "unit", "num", "liga", "mapos", "chim", "nf", "tu", "maj", "minis", "eepi", "date"].includes(sType)) return sType === "date" ? "gram" : "typo";
+  if (["virg", "poncfin"].includes(sType)) return "punc";
+  if (["bs", "pleo", "redon1", "redon2", "neg", "loc"].includes(sType)) return "style";
+  return "gram";
+}
+
+/* ============================================================
+   Moteurs : Grammalecte (worker) et Tesseract (scheduler)
+   ============================================================ */
+const GC = {
+  worker: null, seq: 0, pending: new Map(), ready: null,
+  start() {
+    if (this.ready) return this.ready;
+    setChip("chipGc", "loading", "Grammalecte : chargement…");
+    this.ready = new Promise((resolve, reject) => {
+      try {
+        this.worker = new Worker("grammalecte/gc_worker.js");
+      } catch (e) { setChip("chipGc", "error", "Grammalecte : indisponible"); reject(e); return; }
+      this.worker.onmessage = (ev) => {
+        const { id, ok, result, error } = ev.data; const p = this.pending.get(id);
+        if (!p) return; this.pending.delete(id); ok ? p.res(result) : p.rej(new Error(error));
+      };
+      this.worker.onerror = (e) => { setChip("chipGc", "error", "Grammalecte : erreur de chargement"); reject(e); };
+      this.call("init", { options: gcOptions() }).then((r) => {
+        setChip("chipGc", "ready", "Grammalecte : prêt"); resolve(r);
+      }, (e) => { setChip("chipGc", "error", "Grammalecte : erreur"); reject(e); });
+    });
+    return this.ready;
+  },
+  call(cmd, payload) {
+    const id = ++this.seq;
+    return new Promise((res, rej) => { this.pending.set(id, { res, rej }); this.worker.postMessage({ id, cmd, payload }); });
+  },
+  async check(texts) { await this.start(); return this.call("check", { texts }); },
+  async setOptions() { if (!this.worker) return; await this.ready; return this.call("options", { options: gcOptions() }); }
+};
+
+function simdSupported() {
+  try { return WebAssembly.validate(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1, 0, 10, 10, 1, 8, 0, 65, 0, 253, 15, 253, 98, 11])); } catch (e) { return false; }
+}
+const OCR = {
+  scheduler: null, n: 0, ready: null,
+  start() {
+    if (this.ready) return this.ready;
+    setChip("chipOcr", "loading", "Lecture (OCR) : chargement…");
+    this.ready = (async () => {
+      const core = simdSupported() ? "vendor/tesseract/tesseract-core-simd-lstm.wasm.js" : "vendor/tesseract/tesseract-core-lstm.wasm.js";
+      this.n = Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 4) - 2));
+      this.scheduler = Tesseract.createScheduler();
+      const mk = async () => {
+        // ocr-worker.js sert le modèle français embarqué (aucun téléchargement externe)
+        const w = await Tesseract.createWorker("fra", 1, {
+          workerPath: abs("vendor/tesseract/ocr-worker.js"), corePath: abs(core), langPath: abs("vendor/tesseract/lang"),
+          workerBlobURL: false, cacheMethod: "none", gzip: false
+        });
+        await w.setParameters({ tessedit_pageseg_mode: "7", preserve_interword_spaces: "0" });
+        this.scheduler.addWorker(w);
+      };
+      await mk();
+      setChip("chipOcr", "ready", "Lecture (OCR) : prête");
+      for (let i = 1; i < this.n; i++) mk().catch(() => {});
+      return true;
+    })().catch((e) => { setChip("chipOcr", "error", "Lecture (OCR) : erreur"); this.ready = null; throw e; });
+    return this.ready;
+  },
+  async read(canvas) {
+    const r = await this.scheduler.addJob("recognize", canvas, {}, { text: true, blocks: true });
+    const words = [];
+    for (const b of r.data.blocks || []) for (const p of b.paragraphs || []) for (const l of p.lines || []) for (const w of l.words || []) {
+      if (w.text && w.text.trim()) words.push({ text: w.text.trim(), conf: w.confidence });
+    }
+    return { words, conf: r.data.confidence };
+  }
+};
+function setChip(id, s, txt) { const c = $("#" + id); c.dataset.s = s; c.lastChild.textContent = txt; }
+
+/* ============================================================
+   Traitement d'image : isoler les lettres claires (ou foncées)
+   ============================================================ */
+function vhgw(a, n, k, isMin, out, G, H) {
+  const r = (k - 1) >> 1, N = n + 2 * r, pad = isMin ? 255 : 0;
+  for (let j = 0; j < N; j++) {
+    const v = (j >= r && j < r + n) ? a[j - r] : pad;
+    if (j % k === 0) G[j] = v; else { const g = G[j - 1]; G[j] = isMin ? (g < v ? g : v) : (g > v ? g : v); }
+  }
+  for (let j = N - 1; j >= 0; j--) {
+    const v = (j >= r && j < r + n) ? a[j - r] : pad;
+    if (j === N - 1 || (j + 1) % k === 0) H[j] = v; else { const h = H[j + 1]; H[j] = isMin ? (h < v ? h : v) : (h > v ? h : v); }
+  }
+  for (let i = 0; i < n; i++) { const x = H[i], y = G[i + k - 1]; out[i] = isMin ? (x < y ? x : y) : (x > y ? x : y); }
+}
+function morph(src, w, h, k, isMin) {
+  const tmp = new Uint8Array(w * h), dst = new Uint8Array(w * h);
+  const L = Math.max(w, h), a = new Uint8Array(L), o = new Uint8Array(L), G = new Uint8Array(L + k), H = new Uint8Array(L + k);
+  for (let y = 0; y < h; y++) { const off = y * w; for (let x = 0; x < w; x++) a[x] = src[off + x]; vhgw(a, w, k, isMin, o, G, H); for (let x = 0; x < w; x++) tmp[off + x] = o[x]; }
+  for (let x = 0; x < w; x++) { for (let y = 0; y < h; y++) a[y] = tmp[y * w + x]; vhgw(a, h, k, isMin, o, G, H); for (let y = 0; y < h; y++) dst[y * w + x] = o[y]; }
+  return dst;
+}
+/* Masque des pixels "lettre" : lumineux, peu saturés, plus fins que le noyau (top-hat). */
+function textMask(data, w, h, P) {
+  const n = w * h, g = new Uint8Array(n), okc = new Uint8Array(n);
+  for (let i = 0, j = 0; i < n; i++, j += 4) {
+    const r = data[j], gg = data[j + 1], b = data[j + 2];
+    let v = (r * 77 + gg * 150 + b * 29) >> 8;
+    const mx = r > gg ? (r > b ? r : b) : (gg > b ? gg : b), mn = r < gg ? (r < b ? r : b) : (gg < b ? gg : b);
+    okc[i] = (mx - mn) < P.sat ? 1 : 0;
+    g[i] = P.dark ? 255 - v : v;
+  }
+  const open = morph(morph(g, w, h, P.k, true), w, h, P.k, false);
+  const m = new Uint8Array(n);
+  for (let i = 0; i < n; i++) m[i] = (okc[i] && g[i] > P.L && (g[i] - open[i]) > P.D) ? 1 : 0;
+  return m;
+}
+/* Composantes connexes (8-voisins) */
+function components(m, w, h) {
+  const lab = new Int32Array(w * h); const par = [0];
+  const find = (x) => { while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; };
+  const uni = (a, b) => { a = find(a); b = find(b); if (a !== b) { if (a < b) par[b] = a; else par[a] = b; } };
+  let next = 1;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x; if (!m[i]) continue;
+    let l = 0;
+    const nb = [x > 0 ? i - 1 : -1, y > 0 && x > 0 ? i - w - 1 : -1, y > 0 ? i - w : -1, y > 0 && x < w - 1 ? i - w + 1 : -1];
+    for (const q of nb) if (q >= 0 && lab[q]) { if (!l) l = lab[q]; else if (lab[q] !== l) uni(l, lab[q]); }
+    if (!l) { l = next++; par.push(l); }
+    lab[i] = l;
+  }
+  const map = new Int32Array(next); let cnt = 0;
+  for (let l = 1; l < next; l++) { const r = find(l); if (!map[r]) map[r] = ++cnt; map[l] = map[r]; }
+  const st = { x0: new Int32Array(cnt + 1).fill(1e9), y0: new Int32Array(cnt + 1).fill(1e9), x1: new Int32Array(cnt + 1).fill(-1), y1: new Int32Array(cnt + 1).fill(-1), a: new Int32Array(cnt + 1), n: cnt };
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x; if (!lab[i]) continue; const c = map[lab[i]]; lab[i] = c;
+    if (x < st.x0[c]) st.x0[c] = x; if (x > st.x1[c]) st.x1[c] = x; if (y < st.y0[c]) st.y0[c] = y; if (y > st.y1[c]) st.y1[c] = y; st.a[c]++;
+  }
+  return { lab, st };
+}
+/* Regroupe les composantes "lettres" en lignes, puis les lignes en paragraphes. */
+function findText(m, w, h, P) {
+  const { lab, st } = components(m, w, h);
+  const C = [];
+  for (let i = 1; i <= st.n; i++) {
+    const cw = st.x1[i] - st.x0[i] + 1, ch = st.y1[i] - st.y0[i] + 1, a = st.a[i];
+    if (ch < P.hMin || ch > P.hMax || cw > ch * 2.5 || a < P.aMin || a / (cw * ch) < 0.15) continue;
+    C.push({ x0: st.x0[i], y0: st.y0[i], x1: st.x1[i] + 1, y1: st.y1[i] + 1, h: ch });
+  }
+  const M = C.length, par = new Int32Array(M).map((_, i) => i);
+  const find = (x) => { while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; };
+  const order = C.map((_, i) => i).sort((a, b) => C[a].x0 - C[b].x0);
+  for (let ii = 0; ii < M; ii++) {
+    const a = C[order[ii]];
+    for (let jj = ii + 1; jj < M; jj++) {
+      const b = C[order[jj]];
+      const hm = Math.max(a.h, b.h);
+      if (b.x0 - a.x1 > 1.0 * hm) { if (b.x0 - a.x1 > 3 * P.hMax) break; continue; }
+      const rat = b.h / a.h; if (rat < 0.6 || rat > 1.7) continue;
+      if (Math.abs(a.y1 - b.y1) > 0.25 * hm && Math.abs((a.y0 + a.y1) - (b.y0 + b.y1)) / 2 > 0.25 * hm) continue;
+      const ra = find(order[ii]), rb = find(order[jj]); if (ra !== rb) par[ra] = rb;
+    }
+  }
+  const groups = new Map();
+  for (let i = 0; i < M; i++) { const r = find(i); if (!groups.has(r)) groups.set(r, []); groups.get(r).push(C[i]); }
+  let lines = [], small = [];
+  for (const gs of groups.values()) {
+    if (gs.length < 5) {
+      const hs = gs.map((c) => c.h).sort((a, b) => a - b);
+      small.push({ x0: Math.min(...gs.map((c) => c.x0)), x1: Math.max(...gs.map((c) => c.x1)), y0: Math.min(...gs.map((c) => c.y0)), y1: Math.max(...gs.map((c) => c.y1)), mh: hs[hs.length >> 1] });
+      continue;
+    }
+    const hs = gs.map((c) => c.h).sort((a, b) => a - b), mh = hs[hs.length >> 1];
+    const bots = gs.map((c) => c.y1).sort((a, b) => a - b), mb = bots[bots.length >> 1];
+    const share = gs.filter((c) => Math.abs(c.y1 - mb) <= 0.15 * mh + 2).length / gs.length;
+    const x0 = Math.min(...gs.map((c) => c.x0)), x1 = Math.max(...gs.map((c) => c.x1));
+    if (share < 0.6 || x1 - x0 < 3 * mh) continue;
+    lines.push({ x0, x1, y0: Math.min(...gs.map((c) => c.y0)), y1: Math.max(...gs.map((c) => c.y1)), mh, base: mb });
+  }
+  // fusionne les morceaux d'une même ligne (mots très espacés)
+  lines.sort((a, b) => a.x0 - b.x0);
+  for (let changed = true; changed;) {
+    changed = false;
+    outer: for (let i = 0; i < lines.length; i++) for (let j = 0; j < lines.length; j++) {
+      if (i === j) continue; const a = lines[i], b = lines[j]; const hm = Math.max(a.mh, b.mh);
+      if (Math.abs(a.base - b.base) <= 0.3 * hm && b.x0 >= a.x0 && b.x0 - a.x1 < 3 * hm && b.mh / a.mh > 0.65 && b.mh / a.mh < 1.5) {
+        a.x1 = Math.max(a.x1, b.x1); a.y0 = Math.min(a.y0, b.y0); a.y1 = Math.max(a.y1, b.y1); lines.splice(j, 1); changed = true; break outer;
+      }
+    }
+  }
+  // rattache les mots courts (« de », « Il », « à »…) à la ligne voisine
+  for (let changed = true; changed;) {
+    changed = false;
+    for (let i = small.length - 1; i >= 0; i--) {
+      const s = small[i];
+      const l = lines.find((l) => s.y0 >= l.y0 - 0.45 * l.mh && s.y1 <= l.y1 + 0.45 * l.mh && s.mh <= 1.5 * l.mh && s.mh >= 0.3 * l.mh &&
+        (s.x0 - l.x1 < 2.2 * l.mh) && (l.x0 - s.x1 < 2.2 * l.mh));
+      if (l) { l.x0 = Math.min(l.x0, s.x0); l.x1 = Math.max(l.x1, s.x1); small.splice(i, 1); changed = true; }
+    }
+  }
+  // boîtes élargies (accents, virgules, apostrophes)
+  for (const l of lines) {
+    l.bx0 = Math.max(0, Math.floor(l.x0 - 0.6 * l.mh)); l.bx1 = Math.min(w, Math.ceil(l.x1 + 0.6 * l.mh));
+    l.by0 = Math.max(0, Math.floor(l.y0 - 0.5 * l.mh)); l.by1 = Math.min(h, Math.ceil(l.y1 + 0.4 * l.mh));
+  }
+  // masque nettoyé : seulement les petites composantes dans les boîtes de ligne
+  const clean = new Uint8Array(w * h);
+  let cleanCount = 0;
+  for (const l of lines) {
+    for (let y = l.by0; y < l.by1; y++) for (let x = l.bx0; x < l.bx1; x++) {
+      const i = y * w + x, c = lab[i]; if (!c) continue;
+      const cw = st.x1[c] - st.x0[c] + 1, ch = st.y1[c] - st.y0[c] + 1;
+      if (ch <= 1.5 * l.mh && cw <= 3.5 * l.mh) { if (!clean[i]) { clean[i] = 1; cleanCount++; } }
+    }
+  }
+  // paragraphes
+  lines.sort((a, b) => a.by0 - b.by0);
+  const paras = [];
+  for (const l of lines) {
+    const p = paras.find((p) => {
+      const last = p.lines[p.lines.length - 1];
+      const gap = l.y0 - last.y1, ov = Math.min(l.x1, last.x1) - Math.max(l.x0, last.x0);
+      const rat = l.mh / last.mh;
+      return gap > -0.3 * l.mh && gap < 1.1 * Math.max(l.mh, last.mh) && ov > -2 * l.mh && rat > 0.7 && rat < 1.45;
+    });
+    if (p) p.lines.push(l); else paras.push({ lines: [l] });
+  }
+  for (const p of paras) {
+    p.x0 = Math.min(...p.lines.map((l) => l.bx0)); p.x1 = Math.max(...p.lines.map((l) => l.bx1));
+    p.y0 = Math.min(...p.lines.map((l) => l.by0)); p.y1 = Math.max(...p.lines.map((l) => l.by1));
+    p.mh = p.lines[0].mh;
+  }
+  return { lines, paras, clean, cleanCount };
+}
+function maskDiff(a, b) { let d = 0; for (let i = 0; i < a.length; i++) d += a[i] ^ b[i]; return d; }
+
+/* ============================================================
+   Lecture vidéo image par image
+   ============================================================ */
+function seek(v, t) {
+  return new Promise((res) => {
+    const done = () => { v.removeEventListener("seeked", done); res(); };
+    v.addEventListener("seeked", done);
+    v.currentTime = Math.min(Math.max(0, t), Math.max(0, v.duration - 0.001));
+  });
+}
+function analysisParams(scale, big) {
+  const u = Math.min(S.vw, S.vh) * scale / 1080;
+  const kk = Math.max(9, Math.round((big ? 34 : 17) * u)) | 1;
+  return { k: kk, D: 55, L: 170, sat: 70, dark: S.tone === "dark", hMin: Math.max(6, Math.round(10 * u)), hMax: Math.round((big ? 170 : 75) * u), aMin: Math.max(8, Math.round(20 * u * u)) };
+}
+
+class Scanner {
+  constructor() {
+    this.v = document.createElement("video");
+    Object.assign(this.v.style, { position: "fixed", left: "-2px", top: "0", width: "2px", height: "2px", opacity: "0", pointerEvents: "none" });
+    this.v.muted = true; this.v.playsInline = true; this.v.preload = "auto"; this.v.src = S.url;
+    document.body.appendChild(this.v);
+    const rx = Math.round(S.roi.x * S.vw), ry = Math.round(S.roi.y * S.vh), rw = Math.round(S.roi.w * S.vw), rh = Math.round(S.roi.h * S.vh);
+    this.src = { x: rx, y: ry, w: rw, h: rh };
+    this.scale = Math.min(1, 1280 / S.vw);
+    this.cw = Math.max(16, Math.round(rw * this.scale)); this.ch = Math.max(16, Math.round(rh * this.scale));
+    this.cv = document.createElement("canvas"); this.cv.width = this.cw; this.cv.height = this.ch;
+    this.ctx = this.cv.getContext("2d", { willReadFrequently: true });
+    this.P = analysisParams(this.scale, $("#bigText").checked);
+  }
+  async ready() {
+    if (this.v.readyState >= 1) return;
+    await new Promise((r) => this.v.addEventListener("loadedmetadata", r, { once: true }));
+  }
+  grab() {
+    this.ctx.drawImage(this.v, this.src.x, this.src.y, this.src.w, this.src.h, 0, 0, this.cw, this.ch);
+    return this.ctx.getImageData(0, 0, this.cw, this.ch);
+  }
+  lineCanvas(clean, l) {
+    const pad = Math.round(0.35 * l.mh), up = l.mh < 18 ? 2 : 1;
+    const w = l.bx1 - l.bx0, h = l.by1 - l.by0;
+    const c = document.createElement("canvas"); c.width = (w + 2 * pad) * up; c.height = (h + 2 * pad) * up;
+    const x = c.getContext("2d"); const id = x.createImageData(w + 2 * pad, h + 2 * pad); const d = id.data;
+    d.fill(255);
+    for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) {
+      if (clean[(l.by0 + yy) * this.cw + (l.bx0 + xx)]) { const o = ((yy + pad) * (w + 2 * pad) + (xx + pad)) * 4; d[o] = d[o + 1] = d[o + 2] = 0; }
+    }
+    if (up === 1) { x.putImageData(id, 0, 0); return c; }
+    const t = document.createElement("canvas"); t.width = w + 2 * pad; t.height = h + 2 * pad; t.getContext("2d").putImageData(id, 0, 0);
+    x.imageSmoothingEnabled = true; x.drawImage(t, 0, 0, c.width, c.height); return c;
+  }
+  thumb(p) {
+    const pad = Math.round(0.8 * p.mh);
+    const x0 = Math.max(0, p.x0 - pad), y0 = Math.max(0, p.y0 - pad), x1 = Math.min(this.cw, p.x1 + pad), y1 = Math.min(this.ch, p.y1 + pad);
+    const w = x1 - x0, h = y1 - y0, s = Math.min(1, 480 / w);
+    const c = document.createElement("canvas"); c.width = Math.round(w * s); c.height = Math.round(h * s);
+    c.getContext("2d").drawImage(this.cv, x0, y0, w, h, 0, 0, c.width, c.height);
+    return c.toDataURL("image/jpeg", 0.82);
+  }
+  /* boîte (coord. canvas) → coordonnées normalisées dans l'image vidéo */
+  norm(b) {
+    return { x: (this.src.x + b.x0 / this.scale) / S.vw, y: (this.src.y + b.y0 / this.scale) / S.vh, w: (b.x1 - b.x0) / this.scale / S.vw, h: (b.y1 - b.y0) / this.scale / S.vh };
+  }
+  dispose() { this.v.removeAttribute("src"); this.v.load(); this.v.remove(); }
+}
+
+/* ============================================================
+   Nettoyage et comparaison des textes lus
+   ============================================================ */
+function cleanWord(t) { return t.replace(/[|_~`]+/g, "").trim(); }
+/* Retire les débris en bord de ligne (symboles isolés, lettre seule mal lue) sans toucher à la vraie ponctuation. */
+const ALNUM = /[A-Za-zÀ-ÖØ-öø-ÿŒœ0-9]/;
+function junkEdge(w) {
+  if (/^[?!:;«»…,.]+$/.test(w.text)) return false;
+  if (!ALNUM.test(w.text)) return true;
+  return w.text.length === 1 && w.conf < 85 && !/^[aàyôAÀY]$/.test(w.text);
+}
+function trimLine(ws) {
+  while (ws.length && junkEdge(ws[0])) ws.shift();
+  while (ws.length && junkEdge(ws[ws.length - 1]) && !/^[?!:;»…]+$/.test(ws[ws.length - 1].text)) ws.pop();
+  if (ws.length) ws[0] = { ...ws[0], text: ws[0].text.replace(/^[^A-Za-zÀ-ÖØ-öø-ÿŒœ0-9«"'’(¿¡-]+/, "") || ws[0].text };
+  return ws;
+}
+function lineAccept(words) {
+  const txt = words.map((w) => w.text).join(" ");
+  const letters = (txt.match(/[A-Za-zÀ-ÖØ-öø-ÿŒœ0-9]/g) || []).length;
+  const mean = words.reduce((s, w) => s + w.conf, 0) / Math.max(1, words.length);
+  const longWord = words.some((w) => (w.text.match(/[A-Za-zÀ-ÖØ-öø-ÿŒœ]/g) || []).length >= 2);
+  return words.length && longWord && letters / Math.max(1, txt.replace(/\s/g, "").length) >= 0.55 && mean >= 50;
+}
+const normKey = (s) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]/g, "");
+function lev(a, b) {
+  if (a === b) return 0; const m = a.length, n = b.length; if (!m) return n; if (!n) return m;
+  let prev = new Array(n + 1), cur = new Array(n + 1);
+  for (let j = 0; j <= n; j++) prev[j] = j;
+  for (let i = 1; i <= m; i++) { cur[0] = i; for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); [prev, cur] = [cur, prev]; }
+  return prev[n];
+}
+function related(a, b) {
+  const A = normKey(a), B = normKey(b); if (!A || !B) return false;
+  const sim = 1 - lev(A, B) / Math.max(A.length, B.length);
+  if (sim >= 0.6) return true;
+  // effet machine à écrire : l'un est (presque) le début de l'autre
+  const [s, l] = A.length < B.length ? [A, B] : [B, A];
+  if (s.length < 3) return false;
+  const head = l.slice(0, s.length);
+  return 1 - lev(s, head) / s.length >= 0.8;
+}
+function boxOverlap(a, b) {
+  const oy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y), ox = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+  return oy > 0.3 * Math.min(a.h, b.h) && ox > 0;
+}
+
+/* ============================================================
+   Analyse complète
+   ============================================================ */
+function setPhase(id, done, total, label) {
+  const el = $("#" + id); const pct = total ? Math.min(100, (done / total) * 100) : 0;
+  el.querySelector(".bar b").style.width = pct + "%";
+  el.querySelector(".n").textContent = label != null ? label : `${done} / ${total}`;
+  el.dataset.done = total && done >= total ? "1" : "0";
+}
+async function runAnalysis() {
+  if (S.running) return;
+  S.running = true; S.stop = false; S.example = false;
+  const t0 = performance.now();
+  $("#runBtn").disabled = true; $("#stopBtn").hidden = false; $("#progressPanel").hidden = false;
+  $("#summaryPanel").hidden = true; $("#mailPanel").hidden = true; $("#cards").innerHTML = "";
+  ["ph-scan", "ph-ocr", "ph-tc", "ph-gc"].forEach((p) => setPhase(p, 0, 0, "—"));
+  const ticker = $("#ticker");
+  ticker.textContent = "Chargement des moteurs…";
+  let scanner;
+  try {
+    GC.start().catch(() => {});
+    await OCR.start();
+    scanner = new Scanner(); await scanner.ready();
+    const step = parseFloat($("#step").value);
+    const times = []; for (let t = 0.04; t < S.dur; t += step) times.push(t);
+    const samples = []; let lastRef = null; const jobs = []; let ocrDone = 0, ocrTotal = 0;
+    setPhase("ph-scan", 0, times.length);
+    for (let i = 0; i < times.length; i++) {
+      if (S.stop) break;
+      await seek(scanner.v, times[i]);
+      const img = scanner.grab();
+      const m = textMask(img.data, scanner.cw, scanner.ch, scanner.P);
+      const ft = findText(m, scanner.cw, scanner.ch, scanner.P);
+      const s = { t: times[i], paras: null, ref: null };
+      const mh = ft.lines.length ? ft.lines[0].mh : (lastRef && lastRef.mh) || 20;
+      const changed = !lastRef ? ft.lines.length > 0 : (ft.lines.length === 0 && lastRef.n === 0) ? false : maskDiff(ft.clean, lastRef.clean) > Math.max(60, 0.25 * mh * mh);
+      if (!changed && lastRef) { s.ref = lastRef.sample; }
+      else if (ft.paras.length === 0) { s.paras = []; lastRef = { clean: ft.clean, n: 0, mh, sample: s }; }
+      else {
+        s.paras = ft.paras.map((p) => ({ box: scanner.norm(p), mh: p.mh, thumb: scanner.thumb(p), lines: p.lines.map(() => null) }));
+        ft.paras.forEach((p, pi) => p.lines.forEach((l, li) => {
+          const cv = scanner.lineCanvas(ft.clean, l); ocrTotal++;
+          jobs.push(OCR.read(cv).then((r) => {
+            s.paras[pi].lines[li] = r; ocrDone++; setPhase("ph-ocr", ocrDone, ocrTotal);
+            const txt = r.words.map((w) => w.text).join(" ");
+            if (txt) ticker.innerHTML = `<span class="mono">${fmtTC(s.t, S.fps)}</span> · <q>${esc(txt)}</q>`;
+          }, () => { s.paras[pi].lines[li] = { words: [], conf: 0 }; ocrDone++; }));
+        }));
+        lastRef = { clean: ft.clean, n: ft.lines.length, mh, sample: s };
+      }
+      samples.push(s);
+      setPhase("ph-ocr", ocrDone, ocrTotal);
+      if (i % 3 === 0) { setPhase("ph-scan", i + 1, times.length); await sleep(0); }
+    }
+    setPhase("ph-scan", samples.length, times.length);
+    ticker.textContent = "Fin de la reconnaissance des textes…";
+    await Promise.all(jobs);
+    setPhase("ph-ocr", ocrTotal, ocrTotal);
+
+    // ---- Construction des textes (pistes) ----
+    const tracks = buildTracks(samples, step);
+    // ---- Timecodes à l'image ----
+    if ($("#refine").checked && !S.stop) await refineTracks(scanner, tracks, samples);
+    else setPhase("ph-tc", 1, 1, "désactivé");
+    scanner.dispose(); scanner = null;
+    // ---- Relecture ----
+    setPhase("ph-gc", 0, 1, "en cours…");
+    ticker.textContent = "Relecture orthographe, grammaire et ponctuation…";
+    await checkTracks(tracks);
+    setPhase("ph-gc", 1, 1, `${tracks.length} textes`);
+    S.tracks = tracks;
+    $("#stTime").textContent = fmtDur(performance.now() - t0);
+    ticker.textContent = S.stop ? "Analyse arrêtée : résultats partiels." : "Analyse terminée.";
+    S.filter = tracks.some((t) => t.issues.some((i) => i.status === "pending")) ? "pending" : "all";
+    renderAll();
+    $("#summaryPanel").hidden = false; $("#mailPanel").hidden = false;
+  } catch (e) {
+    console.error(e);
+    ticker.textContent = "Erreur : " + (e && e.message ? e.message : e) + ". Essaie un export MP4 (H.264).";
+  } finally {
+    if (scanner) scanner.dispose();
+    S.running = false; $("#runBtn").disabled = false; $("#stopBtn").hidden = true;
+  }
+}
+
+function sampleParas(s) {
+  const src = s.ref || s; const out = [];
+  for (const p of src.paras || []) {
+    const lines = (p.lines || []).filter(Boolean).map((r) => trimLine(r.words.map((w) => ({ text: cleanWord(w.text), conf: w.conf })).filter((w) => w.text))).filter(lineAccept);
+    if (!lines.length) continue;
+    // texte + positions des mots (pour signaler les lectures incertaines)
+    let text = "", spans = [];
+    lines.forEach((ws, li) => {
+      ws.forEach((w, wi) => {
+        if (text && !(wi === 0 && /-$/.test(text) && li > 0)) text += (wi === 0 && li > 0) ? "\n" : " ";
+        spans.push({ s: text.length, e: text.length + w.text.length, conf: w.conf }); text += w.text;
+      });
+    });
+    const conf = spans.reduce((a, b) => a + b.conf, 0) / spans.length;
+    out.push({ box: p.box, mh: p.mh, thumb: p.thumb, text, spans, conf });
+  }
+  return out;
+}
+/* Part des bigrammes du texte le plus court retrouvés dans le plus long (texte qui s'écrit, qui s'efface, ou relu avec du bruit). */
+function containment(a, b) {
+  let A = normKey(a), B = normKey(b); if (A.length > B.length) [A, B] = [B, A];
+  if (A.length < 2) return A && B.includes(A) ? 1 : 0;
+  const bag = new Map(); for (let i = 0; i < B.length - 1; i++) { const k = B.substr(i, 2); bag.set(k, (bag.get(k) || 0) + 1); }
+  let hit = 0; for (let i = 0; i < A.length - 1; i++) { const k = A.substr(i, 2); const n = bag.get(k); if (n) { hit++; bag.set(k, n - 1); } }
+  return hit / (A.length - 1);
+}
+function sameText(trText, pText, continuous) {
+  if (related(trText, pText)) return true;
+  return containment(trText, pText) >= (continuous ? 0.62 : 0.8);
+}
+function buildTracks(samples, step) {
+  const open = [], done = [];
+  samples.forEach((s, si) => {
+    const paras = sampleParas(s); const used = new Set();
+    for (const p of paras) {
+      let best = null;
+      for (const tr of open) { if (used.has(tr) || !boxOverlap(tr.box, p.box)) continue; if (sameText(tr.last, p.text, tr.lastSi >= si - 1)) { best = tr; break; } }
+      if (best) { used.add(best); best.obs.push({ si, t: s.t, ...p }); best.last = p.text.length >= best.last.length * 0.8 ? p.text : best.last; best.lastSi = si; best.box = unionBox(best.box, p.box); }
+      else { const tr = { firstSi: si, lastSi: si, box: p.box, last: p.text, obs: [{ si, t: s.t, ...p }] }; open.push(tr); used.add(tr); }
+    }
+    for (let i = open.length - 1; i >= 0; i--) if (!used.has(open[i]) && open[i].lastSi < si - 1) done.push(open.splice(i, 1)[0]);
+  });
+  done.push(...open);
+  // fusion a posteriori des morceaux d'un même texte (apparition lettre à lettre, fondu de sortie)
+  done.sort((a, b) => a.firstSi - b.firstSi);
+  const longest = (tr) => tr.obs.reduce((m, o) => (o.text.length > m.length ? o.text : m), "");
+  for (let i = 0; i < done.length; i++) {
+    for (let j = i + 1; j < done.length; j++) {
+      const a = done[i], b = done[j];
+      if (b.firstSi > a.lastSi + 2) continue;
+      if (!boxOverlap(a.box, b.box) || containment(longest(a), longest(b)) < 0.62) continue;
+      a.obs.push(...b.obs); a.lastSi = Math.max(a.lastSi, b.lastSi); a.firstSi = Math.min(a.firstSi, b.firstSi); a.box = unionBox(a.box, b.box);
+      done.splice(j, 1); j = i;
+    }
+  }
+  const tracks = [];
+  for (const tr of done) {
+    // versions candidates : les plus complètes ; la meilleure sera choisie à la relecture (moins de mots inconnus)
+    const maxLen = Math.max(...tr.obs.map((o) => normKey(o.text).length));
+    const byText = new Map();
+    for (const o of tr.obs) {
+      if (normKey(o.text).length < 0.8 * maxLen) continue;
+      const c = byText.get(o.text); if (c) { c.freq++; if (o.conf > c.conf) Object.assign(c, { conf: o.conf, thumb: o.thumb, spans: o.spans }); }
+      else byText.set(o.text, { text: o.text, spans: o.spans, conf: o.conf, thumb: o.thumb, freq: 1 });
+    }
+    const cands = [...byText.values()].sort((a, b) => (b.freq - a.freq) || (b.conf - a.conf)).slice(0, 6);
+    const ref = cands[0];
+    if (tr.obs.length === 1 && ref.conf < 40) continue; // lecture isolée et douteuse : bruit
+    const tIn = samples[tr.firstSi].t, tOut = tr.lastSi + 1 < samples.length ? samples[tr.lastSi + 1].t : S.dur;
+    tracks.push({
+      id: "t" + Math.random().toString(36).slice(2, 9), firstSi: tr.firstSi, lastSi: tr.lastSi, tIn, tOut, box: tr.box, cands,
+      text: ref.text, ocrText: ref.text, spans: ref.spans, conf: ref.conf, thumb: ref.thumb, issues: [], edited: false
+    });
+  }
+  tracks.sort((a, b) => a.tIn - b.tIn);
+  return tracks;
+}
+function unionBox(a, b) { const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y); return { x, y, w: Math.max(a.x + a.w, b.x + b.w) - x, h: Math.max(a.y + a.h, b.y + b.h) - y }; }
+
+/* Affinage à l'image : recherche dichotomique de la transition dans la zone du texte */
+async function refineTracks(sc, tracks, samples) {
+  const fps = S.fps; let k = 0;
+  const frames = new Map(); // petit cache d'images déjà décodées
+  const grabAt = async (t) => {
+    const key = Math.round(t * fps);
+    if (frames.has(key)) return frames.get(key);
+    await seek(sc.v, t); const img = sc.grab();
+    frames.set(key, img); if (frames.size > 10) frames.delete(frames.keys().next().value);
+    return img;
+  };
+  const memo = []; // transitions déjà trouvées : {pair, R, f}
+  const regionMask = async (t, R) => {
+    const img = await grabAt(t);
+    const x0 = Math.max(0, Math.floor(R.x0)), y0 = Math.max(0, Math.floor(R.y0)), x1 = Math.min(sc.cw, Math.ceil(R.x1)), y1 = Math.min(sc.ch, Math.ceil(R.y1));
+    const w = x1 - x0, h = y1 - y0, d = new Uint8ClampedArray(w * h * 4);
+    for (let y = 0; y < h; y++) d.set(img.data.subarray(((y0 + y) * sc.cw + x0) * 4, ((y0 + y) * sc.cw + x1) * 4), y * w * 4);
+    return textMask(d, w, h, sc.P);
+  };
+  const toCanvasBox = (b) => ({ x0: (b.x * S.vw - sc.src.x) * sc.scale, y0: (b.y * S.vh - sc.src.y) * sc.scale, x1: ((b.x + b.w) * S.vw - sc.src.x) * sc.scale, y1: ((b.y + b.h) * S.vh - sc.src.y) * sc.scale });
+  const frameT = (f) => (f + 0.5) / fps;
+  async function transition(tA, tB, R) {
+    let lo = Math.floor(tA * fps), hi = Math.floor(tB * fps);
+    if (hi - lo <= 1) return hi;
+    const A = await regionMask(frameT(lo), R), B = await regionMask(frameT(hi), R);
+    if (maskDiff(A, B) < 40) return null;
+    while (hi - lo > 1) {
+      if (S.stop) return null;
+      const mid = (lo + hi) >> 1; const M = await regionMask(frameT(mid), R);
+      if (maskDiff(M, B) < maskDiff(M, A)) hi = mid; else lo = mid;
+    }
+    return hi;
+  }
+  setPhase("ph-tc", 0, tracks.length);
+  for (const tr of tracks) {
+    if (S.stop) break;
+    const cb = toCanvasBox(tr.box);
+    const R = { x0: cb.x0 - sc.P.k, y0: cb.y0 - sc.P.k / 2, x1: cb.x1 + sc.P.k, y1: cb.y1 + sc.P.k / 2 };
+    const at = async (i) => {
+      const hit = memo.find((m) => m.pair === i && Math.min(m.R.y1, R.y1) - Math.max(m.R.y0, R.y0) > 0.5 * Math.min(m.R.y1 - m.R.y0, R.y1 - R.y0) && Math.min(m.R.x1, R.x1) > Math.max(m.R.x0, R.x0));
+      if (hit) return hit.f;
+      const f = await transition(samples[i].t, samples[i + 1].t, R); memo.push({ pair: i, R, f }); return f;
+    };
+    if (tr.firstSi > 0) { const f = await at(tr.firstSi - 1); if (f != null) tr.tIn = f / fps; }
+    if (tr.lastSi + 1 < samples.length) { const f = await at(tr.lastSi); if (f != null) tr.tOut = f / fps; }
+    tr.tcExact = true;
+    setPhase("ph-tc", ++k, tracks.length);
+  }
+}
+
+/* ============================================================
+   Relecture Grammalecte
+   ============================================================ */
+/* Découpe un texte en segments indépendants : un retour à la ligne suivi d'une majuscule,
+   après une ligne courte ou finie par un point, sépare deux éléments (ex. « Artisan » / « Société X »). */
+function segmentsOf(text) {
+  const lines = text.split("\n"); const segs = []; let start = 0, pos = 0;
+  lines.forEach((l, i) => {
+    if (i > 0) {
+      const prev = lines[i - 1];
+      if (/^[A-ZÀ-ÖØ-Þ]/.test(l) && (/[.!?…»]\s*$/.test(prev) || prev.trim().split(/\s+/).length <= 3)) { segs.push([start, pos - 1]); start = pos; }
+    }
+    pos += l.length + 1;
+  });
+  segs.push([start, text.length]);
+  return segs;
+}
+/* Relit un ou plusieurs textes ; renvoie pour chacun un résultat {gramm, spell} aux positions du texte complet. */
+async function gcTexts(texts) {
+  const jobs = [];
+  texts.forEach((text, ti) => segmentsOf(text).forEach(([a, b]) => jobs.push({ ti, a, s: text.slice(a, b).replace(/\n/g, " ") })));
+  const res = await GC.check(jobs.map((j) => j.s));
+  const out = texts.map((text) => ({ text, gramm: [], spell: [] }));
+  res.forEach((r, k) => {
+    const { ti, a } = jobs[k];
+    r.gramm.forEach((e) => out[ti].gramm.push({ ...e, nStart: e.nStart + a, nEnd: e.nEnd + a }));
+    r.spell.forEach((e) => out[ti].spell.push({ ...e, nStart: e.nStart + a, nEnd: e.nEnd + a }));
+  });
+  return out;
+}
+async function checkTracks(tracks) {
+  if (!tracks.length) return;
+  // relit toutes les versions candidates et garde, pour chaque texte, la mieux lue
+  const all = [], idx = [];
+  tracks.forEach((t, ti) => {
+    const cands = (!t.edited && t.cands && t.cands.length) ? t.cands : [{ text: t.text, spans: t.spans, conf: t.conf, thumb: t.thumb, freq: 1 }];
+    cands.forEach((c) => { all.push(c.text); idx.push([ti, c]); });
+  });
+  const res = await gcTexts(all);
+  const best = new Map();
+  res.forEach((r, k) => {
+    const [ti, c] = idx[k];
+    const words = Math.max(1, c.text.split(/\s+/).length);
+    const score = (r.spell.length * 2 + r.gramm.length) / words - c.freq * 0.02 - c.conf * 0.001;
+    const b = best.get(ti); if (!b || score < b.score) best.set(ti, { score, c, r });
+  });
+  tracks.forEach((t, ti) => {
+    const b = best.get(ti); if (!b) return;
+    if (!t.edited) Object.assign(t, { text: b.c.text, ocrText: b.c.text, spans: b.c.spans, conf: b.c.conf, thumb: b.c.thumb || t.thumb });
+    applyCheck(t, b.r);
+  });
+}
+/* Règles complémentaires : fautes fréquentes en sous-titrage que Grammalecte laisse passer. */
+const EXTRA_RULES = [
+  { re: /\b(?:a|ai|as|avons|avez|ont|avait|avais|avaient|aurait|aurais|auraient|aura|auras|aurons|aurez|auront|aurions|auriez)\s+(du)\s+(?:en|y|le|la|les|l[’']|me|m[’']|te|t[’']|se|s[’']|nous|vous|lui|leur|[a-zà-ÿ]+(?:er|ir|re|oir))\b/gi,
+    msg: "Participe passé de « devoir » : « dû » prend un accent circonflexe (« on a dû partir »).", sugg: ["dû"] },
+  { re: /\b(?:ce|cette|ces|à ce|à cette)\s+(?:moment|jour|soir|matin|fois|année|époque|heure|semaine)\s+(là)\b/gi, skip: true }
+];
+function extraRules(text) {
+  const out = [];
+  for (const r of EXTRA_RULES) {
+    if (r.skip) continue;
+    r.re.lastIndex = 0; let m;
+    while ((m = r.re.exec(text))) {
+      const s = m.index + m[0].indexOf(m[1], m[0].search(/\s/));
+      out.push({ kind: "gram", cat: "gram", s, e: s + m[1].length, word: m[1], msg: r.msg, sugg: r.sugg, rule: "coquille-du" });
+    }
+  }
+  return out;
+}
+function applyCheck(t, r) {
+  const prev = new Map(t.issues.map((i) => [i.key, i]));
+  const list = [];
+  for (const e of r.gramm) {
+    if (S.ignoredRules.has(e.sRuleId)) continue;
+    list.push({ kind: "gram", cat: catOf(e.sType), s: e.nStart, e: e.nEnd, word: r.text.slice(e.nStart, e.nEnd), msg: e.sMessage, sugg: e.aSuggestions.filter(Boolean), url: e.URL, rule: e.sRuleId });
+  }
+  for (const x of extraRules(r.text)) if (!list.some((g) => g.s < x.e && x.s < g.e)) list.push(x);
+  for (const e of r.spell) {
+    if (S.dict.has(e.sValue.toLowerCase())) continue;
+    if (list.some((g) => g.s < e.nEnd && e.nStart < g.e)) continue;
+    list.push({ kind: "spell", cat: "spell", s: e.nStart, e: e.nEnd, word: e.sValue, msg: `« ${e.sValue} » est inconnu du dictionnaire.` + (/^[A-ZÀ-Ö]/.test(e.sValue) ? " Nom propre ? Ajoute-le au dictionnaire perso." : ""), sugg: e.aSuggestions, rule: "spell" });
+  }
+  list.sort((a, b) => a.s - b.s);
+  t.issues = list.map((x) => {
+    const key = `${x.rule}|${x.s}|${x.word}`;
+    const old = prev.get(key);
+    const unsure = !t.edited && (t.spans || []).some((sp) => sp.s < x.e && x.s < sp.e && sp.conf < 72);
+    return Object.assign(x, { key, unsure, status: old ? old.status : "pending", repl: old ? old.repl : null });
+  });
+}
+
+/* ============================================================
+   Rendu des fiches
+   ============================================================ */
+function trackState(t) {
+  if (t.issues.some((i) => i.status === "pending")) return "pending";
+  if (t.issues.some((i) => i.status === "accepted")) return "done";
+  return t.issues.length ? "done" : "clean";
+}
+function correctedText(t) {
+  let out = t.text;
+  const acc = t.issues.filter((i) => i.status === "accepted").sort((a, b) => b.s - a.s);
+  for (const i of acc) out = out.slice(0, i.s) + i.repl + out.slice(i.e);
+  return out;
+}
+function markedHTML(t, curKey) {
+  let html = "", pos = 0;
+  const items = t.issues.filter((i) => i.status !== "ignored" && i.status !== "ocr").sort((a, b) => a.s - b.s);
+  for (const i of items) {
+    if (i.s < pos) continue;
+    html += esc(t.text.slice(pos, i.s));
+    const seg = t.text.slice(i.s, i.e);
+    if (i.status === "accepted") html += (seg ? `<del>${esc(seg)}</del>` : "") + (i.repl ? `<ins>${esc(i.repl)}</ins>` : "");
+    else html += `<mark data-cat="${i.cat}" data-key="${esc(i.key)}" class="${i.key === curKey ? "cur" : ""}">${esc(seg) || "&nbsp;"}</mark>`;
+    pos = i.e;
+  }
+  return html + esc(t.text.slice(pos));
+}
+function renderAll() {
+  const box = $("#cards");
+  const list = S.tracks.filter((t) => {
+    const st = trackState(t);
+    return S.filter === "all" ? true : S.filter === "pending" ? st === "pending" : st === "done";
+  });
+  box.innerHTML = "";
+  if (!list.length) {
+    const msg = S.filter === "pending" ? (S.tracks.length ? "Plus aucune faute à traiter. Le mail est prêt plus bas." : "Aucun texte trouvé dans la zone lue. Essaie « Image entière » ou un autre réglage de couleur.") : "Rien ici pour l'instant.";
+    box.innerHTML = `<div class="empty">${esc(msg)}</div>`;
+  }
+  for (const t of list) box.appendChild(renderCard(t));
+  updateStats(); renderMail();
+  $$("[data-filter]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.filter === S.filter)));
+}
+function updateStats() {
+  $("#stTexts").textContent = S.tracks.length;
+  $("#stPending").textContent = S.tracks.reduce((n, t) => n + t.issues.filter((i) => i.status === "pending").length, 0);
+  $("#stFixed").textContent = S.tracks.reduce((n, t) => n + t.issues.filter((i) => i.status === "accepted").length, 0);
+  const p = S.tracks.filter((t) => trackState(t) === "pending").length, d = S.tracks.filter((t) => trackState(t) === "done").length;
+  $('[data-filter="pending"]').textContent = `À relire (${p})`;
+  $('[data-filter="done"]').textContent = `Traités (${d})`;
+  $('[data-filter="all"]').textContent = `Tous les textes (${S.tracks.length})`;
+}
+function tcButton(t) {
+  const b = document.createElement("button"); b.type = "button"; b.className = "tc";
+  const outLast = Math.max(t.tIn, t.tOut - 1 / S.fps);
+  b.innerHTML = `${fmtTC(t.tIn, S.fps)}<br>${fmtTC(outLast, S.fps)}<small>${t.tcExact ? "à l'image près" : "± " + $("#step").selectedOptions[0].value.replace(".", ",") + " s"} · voir</small>`;
+  b.title = "Afficher ce texte dans la vidéo";
+  b.addEventListener("click", () => showInPlayer(t));
+  return b;
+}
+function renderCard(t) {
+  const c = document.createElement("article"); c.className = "card"; c.dataset.state = trackState(t); c.id = "card-" + t.id;
+  const tcol = document.createElement("div"); tcol.className = "thumbcol";
+  if (t.thumb) { const im = document.createElement("img"); im.className = "thumb"; im.src = t.thumb; im.alt = "Texte tel qu'il apparaît à l'image"; tcol.appendChild(im); }
+  if (t.example) { const s = document.createElement("span"); s.className = "example-tag"; s.textContent = "Exemple"; tcol.appendChild(s); }
+  else tcol.appendChild(tcButton(t));
+  c.appendChild(tcol);
+  const body = document.createElement("div"); body.className = "body";
+  const p = document.createElement("p"); p.className = "ptext"; p.innerHTML = markedHTML(t, t.cur);
+  p.addEventListener("click", (e) => { const m = e.target.closest("mark"); if (!m) return; t.cur = m.dataset.key; const el = $(`#card-${t.id} .issue[data-key="${CSS.escape(t.cur)}"]`); if (el) el.scrollIntoView({ block: "nearest", behavior: "smooth" }); });
+  body.appendChild(p);
+  for (const i of t.issues) body.appendChild(renderIssue(t, i));
+  if (!t.issues.length) { const ok = document.createElement("p"); ok.className = "status-line"; ok.textContent = "Aucune faute détectée."; body.appendChild(ok); }
+  // corriger la lecture OCR
+  const act = document.createElement("div"); act.className = "actions";
+  const eb = document.createElement("button"); eb.type = "button"; eb.className = "btn sm ghost"; eb.textContent = "Corriger la lecture";
+  eb.title = "Si l'OCR a mal lu le texte, retape-le tel qu'il est à l'image puis revérifie.";
+  eb.addEventListener("click", () => {
+    if (body.querySelector(".editbox")) return;
+    const box = document.createElement("div"); box.className = "editbox";
+    box.innerHTML = `<label class="field">Texte exact affiché à l'image<textarea>${esc(t.text)}</textarea></label><div class="row"><button class="btn sm primary" type="button">Revérifier</button><button class="btn sm" type="button">Annuler</button></div>`;
+    const [ok, cancel] = box.querySelectorAll("button");
+    cancel.addEventListener("click", () => box.remove());
+    ok.addEventListener("click", async () => {
+      ok.disabled = true; ok.textContent = "Vérification…";
+      t.text = box.querySelector("textarea").value.replace(/[ \t]+/g, " ").replace(/ *\n+ */g, "\n").trim(); t.edited = true; t.issues = [];
+      const [r] = await gcTexts([t.text]); applyCheck(t, r); rerenderCard(t);
+    });
+    body.insertBefore(box, act);
+  });
+  act.appendChild(eb);
+  if (t.example) eb.disabled = true;
+  body.appendChild(act);
+  c.appendChild(body);
+  return c;
+}
+function rerenderCard(t) { const old = $("#card-" + t.id); if (old) old.replaceWith(renderCard(t)); updateStats(); renderMail(); }
+function renderIssue(t, i) {
+  const d = document.createElement("div"); d.className = "issue"; d.dataset.status = i.status; d.dataset.key = i.key;
+  const head = `<div class="ihead"><span class="cat" data-cat="${i.cat}">${CATS[i.cat]}</span><span class="word">${esc(i.word) || "∅"}</span>${i.unsure ? '<span class="uncertain" title="Le texte a été lu avec une faible confiance : vérifie la vignette.">Lecture incertaine</span>' : ""}</div>`;
+  const why = `<p class="why">${esc(i.msg)}${i.url ? ` <a href="${esc(i.url)}" target="_blank" rel="noopener">En savoir plus</a>` : ""}</p>`;
+  d.innerHTML = head + why;
+  if (i.status === "pending") {
+    const sg = document.createElement("div"); sg.className = "sugg";
+    (i.sugg || []).slice(0, 5).forEach((s) => {
+      const b = document.createElement("button"); b.type = "button"; b.className = "btn sm"; b.textContent = s || "(supprimer)";
+      b.addEventListener("click", () => decide(t, i, "accepted", s)); sg.appendChild(b);
+    });
+    const cu = document.createElement("div"); cu.className = "custom";
+    cu.innerHTML = `<input type="text" aria-label="Remplacement personnalisé" placeholder="Autre remplacement…" value="${esc(i.sugg && i.sugg.length ? "" : i.word)}"><button class="btn sm" type="button">Remplacer</button>`;
+    const inp = cu.querySelector("input");
+    const go = () => { if (inp.value !== i.word) decide(t, i, "accepted", inp.value); };
+    cu.querySelector("button").addEventListener("click", go);
+    inp.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
+    sg.appendChild(cu); d.appendChild(sg);
+    const ac = document.createElement("div"); ac.className = "actions";
+    const mk = (label, fn, title) => { const b = document.createElement("button"); b.type = "button"; b.className = "btn sm ghost"; b.textContent = label; if (title) b.title = title; b.addEventListener("click", fn); ac.appendChild(b); };
+    mk("Ignorer", () => decide(t, i, "ignored"));
+    mk("Erreur de lecture", () => decide(t, i, "ocr"), "Le texte à l'image est juste : c'est l'OCR qui a mal lu.");
+    if (i.kind === "spell") mk(`Ajouter « ${i.word} » au dictionnaire`, () => { addDict(i.word); });
+    else mk("Ignorer cette règle partout", () => { S.ignoredRules.add(i.rule); store.set("ignoredRules", [...S.ignoredRules]); S.tracks.forEach((tt) => (tt.issues = tt.issues.filter((x) => !(x.rule === i.rule && x.status === "pending")))); renderAll(); toast("Règle ignorée pour les prochaines analyses aussi."); });
+    if (t.example) $$("button,input", d).forEach((b) => (b.disabled = true));
+    d.appendChild(ac);
+  } else {
+    const s = document.createElement("div"); s.className = "row";
+    const label = i.status === "accepted" ? `Remplacé par « ${esc(i.repl)} »` : i.status === "ocr" ? "Marqué comme erreur de lecture" : "Ignoré";
+    s.innerHTML = `<span class="status-line">${label}</span>`;
+    const u = document.createElement("button"); u.type = "button"; u.className = "btn sm ghost"; u.textContent = "Annuler";
+    u.addEventListener("click", () => decide(t, i, "pending")); s.appendChild(u); d.appendChild(s);
+  }
+  return d;
+}
+function decide(t, i, status, repl) {
+  i.status = status; i.repl = status === "accepted" ? repl : null;
+  rerenderCard(t);
+  const card = $("#card-" + t.id); if (card) card.dataset.state = trackState(t);
+}
+function showInPlayer(t) {
+  const v = $("#player"); v.pause(); v.currentTime = Math.min(S.dur, (t.tIn + Math.max(t.tIn, t.tOut - 1 / S.fps)) / 2);
+  const hb = $("#hitBox"); placeBox(hb, t.box); hb.hidden = false;
+  if (window.matchMedia("(max-width: 900px)").matches) $("#monitor").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+/* ============================================================
+   Mail
+   ============================================================ */
+function corrections() {
+  return S.tracks.filter((t) => t.issues.some((i) => i.status === "accepted")).map((t) => ({
+    t, before: t.text.replace(/\n/g, " "), after: correctedText(t).replace(/\n/g, " "),
+    why: t.issues.filter((i) => i.status === "accepted").map((i) => `${CATS[i.cat]} : « ${i.word || "∅"} » → « ${i.repl || "∅"} »`)
+  }));
+}
+function renderMail() {
+  const name = S.file ? S.file.name.replace(/\.[^.]+$/, "") : "vidéo";
+  const subj = $("#mailSubject"); if (!subj.dataset.touched) subj.value = `Corrections des textes – ${name}`;
+  const list = corrections(); const sign = $("#mailSign").value.trim();
+  let body = "Bonjour,\n\n";
+  if (!list.length) body += `Je n'ai relevé aucune correction à faire sur les textes de la vidéo « ${name} ».\n`;
+  else {
+    body += `Voici ${list.length > 1 ? `les ${list.length} corrections` : "la correction"} à reporter sur les textes de la vidéo « ${name} » :\n`;
+    list.forEach((c, n) => {
+      const out = Math.max(c.t.tIn, c.t.tOut - 1 / S.fps);
+      body += `\n${n + 1}. ${fmtTC(c.t.tIn, S.fps)} – ${fmtTC(out, S.fps)}\n   Actuel :  « ${c.before} »\n   Corrigé : « ${c.after} »\n` + c.why.map((w) => `   ${w}\n`).join("");
+    });
+  }
+  body += `\nMerci,\n${sign}`;
+  $("#mailBody").value = body.trim() + "\n";
+  const to = $("#mailTo").value.trim();
+  const href = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subj.value)}&body=${encodeURIComponent(body)}`;
+  $("#mailtoLink").href = href;
+  $("#mailHint").textContent = href.length > 1900 ? "Mail long : « Copier le mail » est plus sûr que l'ouverture directe." : "";
+}
+function tableHTML() {
+  const rows = corrections().map((c) => {
+    const out = Math.max(c.t.tIn, c.t.tOut - 1 / S.fps);
+    return `<tr><td style="font-family:monospace;white-space:nowrap;border:1px solid #ccc;padding:6px">${fmtTC(c.t.tIn, S.fps)}<br>${fmtTC(out, S.fps)}</td><td style="border:1px solid #ccc;padding:6px">${esc(c.before)}</td><td style="border:1px solid #ccc;padding:6px"><b>${esc(c.after)}</b></td><td style="border:1px solid #ccc;padding:6px">${c.why.map(esc).join("<br>")}</td></tr>`;
+  }).join("");
+  return `<table style="border-collapse:collapse;font-family:sans-serif;font-size:13px"><thead><tr><th style="border:1px solid #ccc;padding:6px;text-align:left">Timecode</th><th style="border:1px solid #ccc;padding:6px;text-align:left">Actuel</th><th style="border:1px solid #ccc;padding:6px;text-align:left">Corrigé</th><th style="border:1px solid #ccc;padding:6px;text-align:left">Motif</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+async function copyText(txt, html) {
+  try {
+    if (html && window.ClipboardItem) await navigator.clipboard.write([new ClipboardItem({ "text/html": new Blob([html], { type: "text/html" }), "text/plain": new Blob([txt], { type: "text/plain" }) })]);
+    else await navigator.clipboard.writeText(txt);
+    toast("Copié dans le presse-papiers.");
+  } catch (e) {
+    const ta = $("#mailBody"); ta.focus(); ta.select(); toast("Copie bloquée : le texte est sélectionné, fais ⌘C.");
+  }
+}
+
+/* ============================================================
+   Vidéo : chargement, cadence, zone
+   ============================================================ */
+function placeBox(el, b) {
+  el.style.left = b.x * 100 + "%"; el.style.top = b.y * 100 + "%"; el.style.width = b.w * 100 + "%"; el.style.height = b.h * 100 + "%";
+}
+function drawRoi() { placeBox($("#roiBox"), S.roi); }
+async function detectFps(v) {
+  if (!("requestVideoFrameCallback" in HTMLVideoElement.prototype)) return null;
+  const times = [];
+  return new Promise((resolve) => {
+    let stopped = false;
+    const finish = () => {
+      if (stopped) return; stopped = true; v.pause(); v.currentTime = 0;
+      const d = []; for (let i = 1; i < times.length; i++) { const x = times[i] - times[i - 1]; if (x > 0.004 && x < 0.1) d.push(x); }
+      if (d.length < 4) return resolve(null);
+      d.sort((a, b) => a - b); const fps = 1 / d[d.length >> 1];
+      const std = [23.976, 24, 25, 29.97, 30, 50, 59.94, 60]; resolve(std.reduce((a, b) => Math.abs(b - fps) < Math.abs(a - fps) ? b : a));
+    };
+    const cb = (now, meta) => { times.push(meta.mediaTime); if (times.length >= 14) finish(); else v.requestVideoFrameCallback(cb); };
+    v.requestVideoFrameCallback(cb);
+    v.muted = true; v.play().catch(() => finish());
+    setTimeout(finish, 2500);
+  });
+}
+async function loadFile(f) {
+  if (!f) return;
+  if (S.url) URL.revokeObjectURL(S.url);
+  S.file = f; S.url = URL.createObjectURL(f); S.tracks = []; S.example = false;
+  const v = $("#player"); v.src = S.url;
+  $("#drop").hidden = true; $("#stage").hidden = false; $("#setupPanel").hidden = false; $("#hitBox").hidden = true;
+  $("#cards").innerHTML = `<div class="empty">Vérifie que le cadre rouge couvre bien les textes, puis lance l'analyse.</div>`;
+  $("#summaryPanel").hidden = true; $("#mailPanel").hidden = true; $("#progressPanel").hidden = true;
+  await new Promise((res, rej) => { v.onloadedmetadata = res; v.onerror = () => rej(new Error("format")); }).catch(() => null);
+  if (!v.videoWidth) {
+    $("#fileInfo").textContent = "Format non lu par le navigateur : exporte en MP4 H.264.";
+    $("#runBtn").disabled = true; return;
+  }
+  $("#runBtn").disabled = false;
+  S.vw = v.videoWidth; S.vh = v.videoHeight; S.dur = v.duration;
+  $("#fileInfo").textContent = `${f.name} · ${S.vw}×${S.vh} · ${fmtDur(S.dur * 1000)}`;
+  drawRoi();
+  GC.start().catch(() => {}); OCR.start().catch(() => {});
+  const fps = await detectFps(v);
+  if (fps) { S.fps = fps; $("#fps").value = String(fps); $("#fileInfo").textContent += ` · ${String(fps).replace(".", ",")} i/s détectées`; }
+  else S.fps = parseFloat($("#fps").value);
+}
+
+/* Dessin de la zone */
+(function roiDrawing() {
+  const layer = $("#drawLayer"); let start = null;
+  const pt = (e) => { const r = layer.getBoundingClientRect(); return { x: Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), y: Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)) }; };
+  layer.addEventListener("pointerdown", (e) => { start = pt(e); layer.setPointerCapture(e.pointerId); });
+  layer.addEventListener("pointermove", (e) => { if (!start) return; const p = pt(e); S.roi = { x: Math.min(start.x, p.x), y: Math.min(start.y, p.y), w: Math.abs(p.x - start.x), h: Math.abs(p.y - start.y) }; drawRoi(); });
+  layer.addEventListener("pointerup", () => {
+    start = null; layer.hidden = true; $("#drawBtn").setAttribute("aria-pressed", "false");
+    if (S.roi.w < 0.05 || S.roi.h < 0.03) { S.roi = { x: 0, y: 0.5, w: 1, h: 0.5 }; drawRoi(); toast("Zone trop petite : retour à la moitié basse."); }
+  });
+})();
+
+/* ============================================================
+   Réglages, dictionnaire, événements
+   ============================================================ */
+function renderRules() {
+  $("#rules").innerHTML = RULES.map((r) => `<label class="check"><input type="checkbox" data-rule="${r.k}" ${S.rules[r.k] ? "checked" : ""}><span>${esc(r.label)}${r.note ? `<small>${esc(r.note)}</small>` : ""}</span></label>`).join("");
+  $$("[data-rule]").forEach((c) => c.addEventListener("change", async () => {
+    S.rules[c.dataset.rule] = c.checked; store.set("rules", S.rules);
+    await GC.setOptions().catch(() => {});
+    if (S.tracks.length && !S.example) { await checkTracks(S.tracks); renderAll(); }
+  }));
+}
+function renderDict() {
+  const box = $("#dictList");
+  box.innerHTML = [...S.dict].sort().map((w) => `<span>${esc(w)}<button type="button" data-del="${esc(w)}" aria-label="Retirer ${esc(w)}">×</button></span>`).join("") || `<span style="padding:2px 10px" class="hint">vide</span>`;
+  $$("[data-del]", box).forEach((b) => b.addEventListener("click", () => { S.dict.delete(b.dataset.del); store.set("dict", [...S.dict]); renderDict(); }));
+}
+function addDict(w) {
+  w = w.trim().toLowerCase(); if (!w) return;
+  S.dict.add(w); store.set("dict", [...S.dict]); renderDict();
+  S.tracks.forEach((t) => (t.issues = t.issues.filter((i) => !(i.kind === "spell" && i.word.toLowerCase() === w && i.status === "pending"))));
+  renderAll(); toast(`« ${w} » ajouté au dictionnaire.`);
+}
+
+$("#file").addEventListener("change", (e) => loadFile(e.target.files[0]));
+const drop = $("#drop");
+["dragenter", "dragover"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", (e) => { const f = e.dataTransfer.files[0]; if (f) loadFile(f); });
+document.addEventListener("dragover", (e) => e.preventDefault());
+document.addEventListener("drop", (e) => { e.preventDefault(); if (!S.running && e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]); });
+$("#changeBtn").addEventListener("click", () => { if (!S.running) $("#file").click(); });
+$("#runBtn").addEventListener("click", runAnalysis);
+$("#stopBtn").addEventListener("click", () => { S.stop = true; $("#ticker").textContent = "Arrêt demandé…"; });
+$("#fps").addEventListener("change", (e) => { S.fps = parseFloat(e.target.value); if (S.tracks.length) renderAll(); });
+$$("[data-roi]").forEach((b) => b.addEventListener("click", () => {
+  S.roi = b.dataset.roi === "full" ? { x: 0, y: 0, w: 1, h: 1 } : { x: 0, y: 0.5, w: 1, h: 0.5 }; drawRoi();
+  $$("[data-roi]").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); $("#drawBtn").setAttribute("aria-pressed", "false");
+}));
+$("#drawBtn").addEventListener("click", () => {
+  $("#drawLayer").hidden = false; $("#drawBtn").setAttribute("aria-pressed", "true"); $$("[data-roi]").forEach((x) => x.setAttribute("aria-pressed", "false"));
+  toast("Trace un rectangle sur la vidéo autour des textes.");
+});
+$$("[data-tone]").forEach((b) => b.addEventListener("click", () => { S.tone = b.dataset.tone; $$("[data-tone]").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); }));
+$$("[data-filter]").forEach((b) => b.addEventListener("click", () => { S.filter = b.dataset.filter; renderAll(); }));
+$("#player").addEventListener("timeupdate", (e) => { $("#tcNow").textContent = fmtTC(e.target.currentTime, S.fps); });
+$("#player").addEventListener("play", () => { $("#hitBox").hidden = true; });
+$("#mailSubject").addEventListener("input", (e) => { e.target.dataset.touched = "1"; renderMail(); });
+$("#mailTo").value = store.get("mailTo", ""); $("#mailSign").value = store.get("sign", "");
+$("#mailTo").addEventListener("input", (e) => { store.set("mailTo", e.target.value); renderMail(); });
+$("#mailSign").addEventListener("input", (e) => { store.set("sign", e.target.value); renderMail(); });
+$("#copyMail").addEventListener("click", () => copyText(`Objet : ${$("#mailSubject").value}\n\n${$("#mailBody").value}`));
+$("#copyTable").addEventListener("click", () => {
+  const list = corrections(); if (!list.length) { toast("Aucune correction retenue pour l'instant."); return; }
+  const intro = `<p>Bonjour,</p><p>Voici les corrections à reporter :</p>`, outro = `<p>Merci,<br>${esc($("#mailSign").value)}</p>`;
+  copyText($("#mailBody").value, intro + tableHTML() + outro);
+});
+$("#dictAddBtn").addEventListener("click", () => { addDict($("#dictAdd").value); $("#dictAdd").value = ""; });
+$("#dictAdd").addEventListener("keydown", (e) => { if (e.key === "Enter") { addDict(e.target.value); e.target.value = ""; } });
+renderRules(); renderDict();
+
+/* Exemple affiché avant le premier chargement */
+(function example() {
+  const text = "Les artisans ont commencés a poser les panneaux de bois.";
+  const t = {
+    id: "demo", example: true, tIn: 12.48, tOut: 15.6, box: { x: 0, y: 0, w: 1, h: 1 }, text, edited: true, spans: [],
+    issues: [
+      { key: "a", kind: "gram", cat: "gram", s: 17, e: 26, word: "commencés", msg: "Avec l'auxiliaire « avoir », le participe passé ne s'accorde pas avec le sujet.", sugg: ["commencé"], status: "pending", rule: "demo" },
+      { key: "b", kind: "gram", cat: "gram", s: 27, e: 28, word: "a", msg: "Confusion probable : « a » est une forme du verbe avoir. Ici, il faut la préposition « à ».", sugg: ["à"], status: "pending", rule: "demo" }
+    ]
+  };
+  const box = $("#cards");
+  box.innerHTML = `<div class="panel"><h2>Ce que tu obtiendras</h2><p class="hint" style="margin:0">Chaque texte fautif apparaît avec son timecode, la vignette de l'image, la faute surlignée, l'explication et les remplacements possibles. À la fin, un mail récapitule les corrections retenues.</p></div>`;
+  box.appendChild(renderCard(t));
+})();
+</script>
+
+</body>
+</html>

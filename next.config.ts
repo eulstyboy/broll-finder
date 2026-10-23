@@ -13,6 +13,7 @@ const nextConfig: NextConfig = {
         { source: "/bille/", destination: "/bille/index.html" },
         { source: "/lupercalia/", destination: "/lupercalia/index.html" },
         { source: "/luciole/", destination: "/luciole/index.html" },
+        { source: "/coquille/", destination: "/coquille/index.html" },
         // Éditeur de projets : edit.eulst.app (domaine à ajouter au projet Vercel) et eulst.app/edit/.
         { source: "/", has: [{ type: "host", value: "edit.eulst.app" }], destination: "/edit/index.html" },
         { source: "/edit/", destination: "/edit/index.html" },

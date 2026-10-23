@@ -1,0 +1,29 @@
+COQUILLE — relecture des textes incrustés dans une vidéo
+=========================================================
+
+Page web autonome : tout tourne dans le navigateur, sans serveur ni API.
+La vidéo n'est jamais envoyée sur Internet.
+
+Contenu
+-------
+index.html                      l'application (interface + analyse d'image)
+vendor/tesseract/               Tesseract.js 7.0.0 (OCR, licence Apache 2.0)
+  tesseract-core-*-lstm.wasm.js moteur OCR WebAssembly (avec / sans SIMD)
+  lang/fra.traineddata.json     modèle français (tessdata_best int, gzip en base64)
+grammalecte/                    Grammalecte 2.3.1 compilé depuis les sources
+                                officielles (github.com/algoo/grammalecte),
+                                licence GPL v3 (voir LICENSE-GPL3.txt)
+  gc_worker.js                  petit worker qui charge le moteur et vérifie
+                                les textes
+
+Hébergement
+-----------
+Copier le dossier tel quel sur n'importe quel hébergement statique
+(eulst.app, GitHub Pages…). Il faut un serveur HTTP : ouvrir index.html
+directement depuis le disque (file://) ne fonctionne pas, car les workers
+et le chargement des dictionnaires l'interdisent.
+
+Licences
+--------
+Grammalecte est sous GPL v3 : si l'outil est distribué publiquement,
+son code (y compris index.html) doit rester disponible sous GPL v3.
