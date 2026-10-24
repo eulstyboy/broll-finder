@@ -25,8 +25,8 @@ async function init(threads) {
 }
 
 /* ---------- Détection (DBNet) ---------- */
-async function detect(rgba, w, h) {
-  const s = Math.min(1, DET_MAX / Math.max(w, h));
+async function detect(rgba, w, h, scale) {
+  const s = scale || Math.min(1, DET_MAX / Math.max(w, h));
   const rw = Math.max(32, Math.round((w * s) / 32) * 32), rh = Math.max(32, Math.round((h * s) / 32) * 32);
   const sx = w / rw, sy = h / rh;
   const mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225]; // appliqués en ordre B, G, R
@@ -111,8 +111,8 @@ async function recognize(rgba, w, b) {
   return { text: text.trim(), conf: confs.length ? confs.reduce((a, b) => a + b, 0) / confs.length : 0 };
 }
 
-async function readFrame(rgba, w, h) {
-  const boxes = await detect(rgba, w, h);
+async function readFrame(rgba, w, h, scale) {
+  const boxes = await detect(rgba, w, h, scale);
   const out = [], next = [];
   for (const b of boxes) {
     const sig = cropSig(rgba, w, b);
@@ -131,7 +131,7 @@ self.onmessage = async (ev) => {
   const { id, cmd } = ev.data;
   try {
     if (cmd === "init") { await init(ev.data.threads); self.postMessage({ id, ok: true, result: { threads: ort.env.wasm.numThreads } }); }
-    else if (cmd === "read") { const { buf, w, h } = ev.data; self.postMessage({ id, ok: true, result: await readFrame(new Uint8ClampedArray(buf), w, h) }); }
+    else if (cmd === "read") { const { buf, w, h, scale } = ev.data; self.postMessage({ id, ok: true, result: await readFrame(new Uint8ClampedArray(buf), w, h, scale) }); }
     else if (cmd === "reset") { cache = []; self.postMessage({ id, ok: true }); }
   } catch (e) {
     self.postMessage({ id, ok: false, error: String((e && e.message) || e) });

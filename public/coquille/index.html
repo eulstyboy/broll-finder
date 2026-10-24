@@ -264,11 +264,10 @@ details.settings .inner { display: grid; gap: var(--s4); margin-top: var(--s4); 
             <option value="59.94">59,94</option><option value="60">60</option>
           </select>
         </label>
-        <label class="field" for="step">Fréquence d'analyse
-          <select id="step">
-            <option value="0.2">5 images/s (précis, lent)</option>
-            <option value="0.333" selected>3 images/s</option>
-            <option value="0.5">2 images/s (rapide)</option>
+        <label class="field" for="mode">Analyse
+          <select id="mode">
+            <option value="quick" selected>Rapide : une capture par sous-titre</option>
+            <option value="deep">Approfondie : 3 images/s (plus lent)</option>
           </select>
         </label>
       </div>
@@ -279,7 +278,7 @@ details.settings .inner { display: grid; gap: var(--s4); margin-top: var(--s4); 
           <div class="grid2">
           </div>
           <label class="check" id="claudeOpt"><input type="checkbox" id="useClaude" checked><span>Relecture par Claude en plus de Grammalecte<small>Repère aussi les mots manquants, répétitions et tournures fautives. Seuls les textes lus sont envoyés, jamais la vidéo.</small></span></label>
-          <label class="check"><input type="checkbox" id="refine" checked><span>Timecodes à l'image près<small>Affine l'entrée et la sortie de chaque texte (un peu plus long).</small></span></label>
+          <label class="check"><input type="checkbox" id="refine" checked><span>Timecodes à l'image près<small>Affine l'entrée et la sortie de chaque texte. Décoché : environ 2 fois plus rapide, timecodes à quelques images près.</small></span></label>
           <div>
             <p class="eyebrow" style="margin:0 0 6px">Règles vérifiées</p>
             <div class="grid2" id="rules"></div>
@@ -494,7 +493,13 @@ const OCR = {
     const id = ++this.seq;
     return new Promise((res, rej) => { this.pending.set(id, { res, rej }); this.worker.postMessage({ id, cmd, ...data }, transfer || []); });
   },
-  read(img) { const buf = img.data.slice().buffer; return this.call("read", { buf, w: img.width, h: img.height }, [buf]); },
+  read(img, scale) { const buf = img.data.slice().buffer; return this.call("read", { buf, w: img.width, h: img.height, scale }, [buf]); },
+  /* lit seulement les lignes de y0 à y1 de l'image (les bandes où du texte a été repéré) */
+  async readRows(img, y0, y1, scale) {
+    const w = img.width, part = new ImageData(img.data.slice(y0 * w * 4, y1 * w * 4), w, y1 - y0);
+    const lines = await this.read(part, scale);
+    return lines.map((l) => ({ ...l, y0: l.y0 + y0, y1: l.y1 + y0 }));
+  },
   reset() { return this.worker ? this.call("reset", {}) : Promise.resolve(); }
 };
 function setChip(id, s, txt) { const c = $("#" + id); c.dataset.s = s; c.lastChild.textContent = txt; }
@@ -831,7 +836,48 @@ async function runAnalysis() {
     GC.start().catch(() => {});
     await OCR.start(); await OCR.reset();
     scanner = new Scanner(); await scanner.ready();
-    const step = parseFloat($("#step").value);
+    const quick = S.quick = $("#mode").value === "quick";
+    const step = quick ? 0.5 : 0.333;
+    let samples;
+    if (quick) samples = await quickSamples(scanner, ticker);
+    else samples = await deepSamples(scanner, ticker, step);
+    if (!samples) throw new Error("analyse interrompue");
+
+    // ---- Construction des textes (pistes) ----
+    const tracks = buildTracks(samples, step);
+    // ---- Timecodes à l'image ----
+    if ($("#refine").checked && !S.stop) await refineTracks(scanner, tracks, samples);
+    else setPhase("ph-tc", 1, 1, "désactivé");
+    scanner.dispose(); scanner = null;
+    // ---- Relecture ----
+    setPhase("ph-gc", 0, 1, "en cours…");
+    ticker.textContent = "Relecture orthographe, grammaire et ponctuation…";
+    await checkTracks(tracks);
+    setPhase("ph-gc", 1, 1, `${tracks.length} textes`);
+    if (claudeAvailable() && $("#useClaude").checked && !S.stop && tracks.length) {
+      setPhase("ph-ai", 0, 1, "en cours…"); ticker.textContent = "Relecture par Claude…";
+      const ok = await claudeReview(tracks);
+      setPhase("ph-ai", ok ? 1 : 0, 1, ok ? "terminée" : "non faite");
+    } else setPhase("ph-ai", 1, 1, "désactivée");
+    S.tracks = tracks;
+    $("#stTime").textContent = fmtDur(performance.now() - t0);
+    ticker.textContent = S.stop ? "Analyse arrêtée : résultats partiels." : "Analyse terminée.";
+    S.filter = tracks.some((t) => t.issues.some((i) => i.status === "pending")) ? "pending" : "all";
+    renderAll();
+    $("#summaryPanel").hidden = false; $("#mailPanel").hidden = false;
+  } catch (e) {
+    console.error(e);
+    ticker.textContent = "Erreur : " + (e && e.message ? e.message : e) + ". Essaie un export MP4 (H.264).";
+  } finally {
+    if (scanner) scanner.dispose();
+    S.running = false; $("#runBtn").disabled = false; $("#stopBtn").hidden = true;
+    const v = $("#player"); v.playbackRate = 1;
+  }
+}
+
+/* ---------- Mode approfondi : PaddleOCR sur 3 images par seconde ---------- */
+async function deepSamples(scanner, ticker, step) {
+    $("#ph-scan span").textContent = "Lecture des images"; $("#ph-ocr span").textContent = "Lecture des textes (PaddleOCR)";
     const times = []; for (let t = 0.04; t < S.dur; t += step) times.push(t);
     const samples = []; let lastSig = null, lastSample = null, read = 0;
     setPhase("ph-scan", 0, times.length); setPhase("ph-ocr", 0, times.length);
@@ -872,36 +918,181 @@ async function runAnalysis() {
     if (inflight) await finish(inflight);
     for (const s of samples) if (s.ref && !s.ref.paras) s.ref = null;
     setPhase("ph-scan", samples.length, times.length); setPhase("ph-ocr", times.length, times.length);
+    return samples;
+}
 
-    // ---- Construction des textes (pistes) ----
-    const tracks = buildTracks(samples, step);
-    // ---- Timecodes à l'image ----
-    if ($("#refine").checked && !S.stop) await refineTracks(scanner, tracks, samples);
-    else setPhase("ph-tc", 1, 1, "désactivé");
-    scanner.dispose(); scanner = null;
-    // ---- Relecture ----
-    setPhase("ph-gc", 0, 1, "en cours…");
-    ticker.textContent = "Relecture orthographe, grammaire et ponctuation…";
-    await checkTracks(tracks);
-    setPhase("ph-gc", 1, 1, `${tracks.length} textes`);
-    if (claudeAvailable() && $("#useClaude").checked && !S.stop && tracks.length) {
-      setPhase("ph-ai", 0, 1, "en cours…"); ticker.textContent = "Relecture par Claude…";
-      const ok = await claudeReview(tracks);
-      setPhase("ph-ai", ok ? 1 : 0, 1, ok ? "terminée" : "non faite");
-    } else setPhase("ph-ai", 1, 1, "désactivée");
-    S.tracks = tracks;
-    $("#stTime").textContent = fmtDur(performance.now() - t0);
-    ticker.textContent = S.stop ? "Analyse arrêtée : résultats partiels." : "Analyse terminée.";
-    S.filter = tracks.some((t) => t.issues.some((i) => i.status === "pending")) ? "pending" : "all";
-    renderAll();
-    $("#summaryPanel").hidden = false; $("#mailPanel").hidden = false;
-  } catch (e) {
-    console.error(e);
-    ticker.textContent = "Erreur : " + (e && e.message ? e.message : e) + ". Essaie un export MP4 (H.264).";
-  } finally {
-    if (scanner) scanner.dispose();
-    S.running = false; $("#runBtn").disabled = false; $("#stopBtn").hidden = true;
+/* ---------- Mode rapide (une seule passe) ----------
+   La vidéo est lue en accéléré. Sur chaque image, on garde les pixels de texte restés fixes un instant
+   (le décor qui bouge avec la caméra disparaît) et on repère chaque changement de texte.
+   Pour chaque texte, on capture l'image où il est le plus complet ; PaddleOCR lit ces captures
+   pendant que la lecture continue (pas de retour en arrière dans la vidéo). */
+const QUICK_RATE = 4;
+async function quickSamples(scanner, ticker) {
+  $("#ph-scan span").textContent = `Repérage des textes (lecture ×${QUICK_RATE})`; $("#ph-ocr span").textContent = "Lecture des textes (une image par texte)";
+  ticker.textContent = "Lecture accélérée de la vidéo…";
+  const v = $("#player"), rx = Math.round(S.roi.x * S.vw), ry = Math.round(S.roi.y * S.vh), rw = Math.round(S.roi.w * S.vw), rh = Math.round(S.roi.h * S.vh);
+  // masque de repérage (basse définition)
+  const W = 400, sc = W / rw, H = Math.max(16, Math.round(rh * sc));
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+  const ctx = cv.getContext("2d", { willReadFrequently: true });
+  // capture pour la lecture (même définition que l'analyse)
+  const cap = document.createElement("canvas"); cap.width = scanner.cw; cap.height = scanner.ch;
+  const capCtx = cap.getContext("2d", { willReadFrequently: true });
+  // un seul cliché par image : la vidéo continue d'avancer pendant le traitement, masque et capture doivent venir du même instant
+  const snap = () => capCtx.drawImage(v, rx, ry, rw, rh, 0, 0, scanner.cw, scanner.ch);
+  const capture = () => capCtx.getImageData(0, 0, scanner.cw, scanner.ch);
+  const k = Math.max(3, Math.round((17 * Math.min(S.vw, S.vh) * sc) / 1080)) | 1;
+  const P = { k, D: 50, L: 165, sat: 256 };
+  const minPix = Math.max(25, Math.round(W * H * 0.0006));
+  // l'image est découpée en bandes horizontales : un changement de sous-titre se voit même quand un autre texte reste affiché
+  const NB = 16, bandH = Math.ceil(H / NB), minBand = Math.max(12, minPix >> 1, Math.round(0.012 * W * bandH)); // une ligne de texte est dense ; le bruit du décor est épars
+  const bands = (m) => { const c = new Int32Array(NB); for (let y = 0; y < H; y++) { let s = 0; const o = y * W; for (let x = 0; x < W; x++) s += m[o + x]; c[(y / bandH) | 0] += s; } return c; };
+  // pour chaque pixel de texte : depuis combien d'images et depuis quand il est présent sans interruption
+  const age = new Uint8Array(W * H), born = new Float32Array(W * H).fill(Infinity), bornPrev = new Float32Array(W * H);
+  const persistent = (m, t) => {
+    bornPrev.set(born);
+    const out = new Uint8Array(m.length); let n = 0;
+    for (let i = 0; i < m.length; i++) {
+      if (m[i]) { if (!age[i]) born[i] = t; age[i] = Math.min(255, age[i] + 1); } else { age[i] = 0; born[i] = Infinity; }
+      const ok = age[i] >= 2 && t - born[i] >= 0.1 ? 1 : 0; out[i] = ok; n += ok;
+    }
+    return [out, n];
+  };
+
+  const samples = [], queue = [];
+  let cur = null, ref = null, refCount = 0, refB = new Int32Array(NB), prevT = 0, finished = false, paused = false, queued = 0, done = 0;
+  const emit = (seg) => {
+    const s = { t: seg.t0, tPrev: seg.tPrev, paras: [], ref: null };
+    samples.push(s);
+    if (seg.text && seg.img) { queue.push({ seg, s }); queued++; setPhase("ph-ocr", done, queued); }
+  };
+  const step = (t) => {
+    snap();
+    ctx.drawImage(cap, 0, 0, scanner.cw, scanner.ch, 0, 0, W, H);
+    const raw = textMaskBoth(ctx.getImageData(0, 0, W, H).data, W, H, P);
+    const [pm, n] = persistent(raw, t); // pixels de texte fixes depuis un instant : ce qui est affiché (sans le décor qui bouge)
+    const nb = bands(pm);
+    if (!cur) { cur = { t0: t, tPrev: t, text: n >= minPix, bestN: n, pm, img: n >= minPix ? capture() : null }; ref = pm; refCount = n; refB = nb; prevT = t; return; }
+    // la disparition d'un texte se lit sur l'image brute (visible dès la première image), en ne surveillant
+    // que les pixels du texte de référence restés stables un moment (le décor qui bouge n'y reste pas)
+    const ib = new Int32Array(NB), sb = new Int32Array(NB), rb = bands(raw);
+    for (let y = 0; y < H; y++) {
+      const o = y * W, kb = (y / bandH) | 0; let s = 0, st = 0;
+      for (let x = 0; x < W; x++) { const i = o + x; if (ref[i] && prevT - bornPrev[i] >= 0.25) { st++; s += raw[i]; } }
+      ib[kb] += s; sb[kb] += st;
+    }
+    let inter = 0, stable = 0;
+    for (let b = 0; b < NB; b++) if (sb[b] >= minBand) { inter += ib[b]; stable += sb[b]; }
+    const textNow = n >= minPix, textRef = refCount >= minPix;
+    let cut = (textRef && stable >= minPix && (stable - inter) / stable > 0.4) || textNow !== textRef;
+    if (!cut && textNow) {
+      for (let b = 0; b < NB && !cut; b++) {
+        if (sb[b] >= minBand) {
+          const lost = (sb[b] - ib[b]) / sb[b], gained = rb[b] ? (rb[b] - ib[b]) / rb[b] : 0;
+          if (lost > 0.35 || (lost > 0.15 && gained > 0.45)) cut = true;                       // une ligne a changé (un texte qui s'écrit ne perd rien)
+        } else if (refB[b] < minBand / 2 && nb[b] >= minBand && !(refB[b - 1] >= minBand) && !(refB[b + 1] >= minBand)) cut = true; // un texte apparaît ailleurs
+      }
+      if (!cut && n > refCount) { ref = pm; refCount = n; refB = nb; } // le texte s'écrit : même segment
+    }
+    if (cut) {
+      cur.t1 = t;
+      const micro = cur.t1 - cur.t0 < 0.2; // transition (fondu, apparition) : rattachée au texte suivant
+      const next = { t0: micro ? cur.t0 : t, tPrev: micro ? cur.tPrev : prevT, text: textNow, bestN: n, pm, img: textNow ? capture() : null };
+      if (!micro) emit(cur);
+      cur = next; ref = pm; refCount = n; refB = nb;
+    } else if (textNow && n > cur.bestN * 1.03) { cur.bestN = n; cur.pm = pm; cur.img = capture(); } // le texte est plus complet : nouvelle capture
+    prevT = t;
+  };
+
+  // ---- lecture des captures, en parallèle de la lecture vidéo ----
+  const boxSig = (img, b) => { // empreinte en niveaux de gris d'une zone (pour savoir si un texte déjà lu a changé)
+    const out = new Float32Array(64), bw = Math.max(1, b.x1 - b.x0), bh = Math.max(1, b.y1 - b.y0), d = img.data, w = img.width;
+    for (let j = 0; j < 4; j++) for (let i = 0; i < 16; i++) {
+      const x = Math.min(b.x1 - 1, b.x0 + Math.floor(((i + 0.5) * bw) / 16)), y = Math.min(b.y1 - 1, b.y0 + Math.floor(((j + 0.5) * bh) / 4));
+      const o = (y * w + x) * 4; out[j * 16 + i] = (d[o] * 77 + d[o + 1] * 150 + d[o + 2] * 29) >> 8;
+    }
+    return out;
+  };
+  const fx = W / scanner.cw, fy = H / scanner.ch, detScale = Math.min(1, 512 / Math.max(scanner.cw, scanner.ch));
+  let last = null; // dernière lecture : { s, boxes: [{b, sig}] }
+  const readOne = async ({ seg, s }) => {
+    const img = seg.img, pm = seg.pm;
+    // faux changement (le décor a bougé) : textes déjà lus intacts et aucun autre texte fixe → on réutilise la lecture
+    if (last && last.boxes.length && last.boxes.every(({ b, sig }) => { const nn = boxSig(img, b); let d = 0; for (let q = 0; q < 64; q++) d += Math.abs(nn[q] - sig[q]); return d / 64 < 7; })) {
+      const inBox = new Uint8Array(W * H);
+      for (const { b } of last.boxes) for (let y = Math.max(0, Math.floor(b.y0 * fy)); y < Math.min(H, Math.ceil(b.y1 * fy)); y++) for (let x = Math.max(0, Math.floor(b.x0 * fx)); x < Math.min(W, Math.ceil(b.x1 * fx)); x++) inBox[y * W + x] = 1;
+      let outside = 0; for (let q = 0; q < pm.length; q++) if (pm[q] && !inBox[q]) outside++;
+      if (outside < minPix * 2) { s.ref = last.s; return; }
+    }
+    // ne lire que les bandes où du texte fixe a été repéré (avec une marge)
+    let r0 = -1, r1 = -1;
+    for (let y = 0; y < H; y++) { let c = 0; const o = y * W; for (let x = 0; x < W; x++) c += pm[o + x]; if (c >= 8) { if (r0 < 0) r0 = y; r1 = y; } }
+    let raw;
+    if (r0 >= 0) {
+      const margin = Math.round(H * 0.06);
+      const y0 = Math.max(0, Math.floor(((r0 - margin) * scanner.ch) / H)), y1 = Math.min(scanner.ch, Math.ceil(((r1 + 1 + margin) * scanner.ch) / H));
+      raw = y1 - y0 < scanner.ch * 0.8 ? await OCR.readRows(img, y0, y1, detScale) : await OCR.read(img, detScale);
+    } else raw = await OCR.read(img, detScale);
+    // ne garder que les lignes posées sur des pixels de texte restés fixes (incrustations)
+    const lines = raw.filter((l) => {
+      const x0 = Math.max(0, Math.floor(l.x0 * fx)), x1 = Math.min(W, Math.ceil(l.x1 * fx)), y0 = Math.max(0, Math.floor(l.y0 * fy)), y1 = Math.min(H, Math.ceil(l.y1 * fy));
+      let c = 0; for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) c += pm[y * W + x];
+      return c / Math.max(1, (x1 - x0) * (y1 - y0)) >= 0.02;
+    });
+    const paras = groupLines(lines);
+    s.paras = paras.map((p) => ({ box: scanner.norm(p), mh: p.mh, thumb: scanner.thumb(img, p), lines: p.lines.map((l) => ({ words: l.words })) }));
+    last = { s, boxes: lines.map((l) => ({ b: l, sig: boxSig(img, l) })) };
+    const txt = paras.map((p) => p.lines.map((l) => l.words.map((w) => w.text).join(" ")).join(" / ")).join(" · ");
+    if (txt) ticker.innerHTML = `<span class="mono">${fmtTC(s.t, S.fps)}</span> · <q>${esc(txt)}</q>`;
+  };
+  const consumer = (async () => {
+    for (;;) {
+      if (!queue.length) { if (finished) return; await sleep(25); continue; }
+      const job = queue.shift();
+      try { await readOne(job); } catch (e) { console.error(e); }
+      job.seg.img = null; job.seg.pm = null;
+      done++; setPhase("ph-ocr", done, queued);
+      if (paused && queue.length < 4 && !S.stop) { paused = false; v.play().catch(() => {}); }
+    }
+  })();
+
+  // ---- lecture accélérée ----
+  if ("requestVideoFrameCallback" in HTMLVideoElement.prototype) {
+    await new Promise((resolve) => {
+      let ended = false;
+      const end = () => { if (ended) return; ended = true; v.pause(); resolve(); };
+      const onFrame = (now, md) => {
+        if (ended) return;
+        if (S.stop) return end();
+        step(md.mediaTime);
+        setPhase("ph-scan", Math.round(md.mediaTime * 10), Math.round(S.dur * 10), `${fmtTC(md.mediaTime, S.fps)} / ${fmtTC(S.dur, S.fps)}`);
+        if (v.ended || md.mediaTime >= S.dur - 0.05) return end();
+        if (queue.length > 12 && !paused) { paused = true; v.pause(); } // l'OCR prend du retard : on l'attend
+        v.requestVideoFrameCallback(onFrame);
+      };
+      v.pause(); v.muted = true; $("#hitBox").hidden = true;
+      seek(v, 0).then(() => {
+        v.playbackRate = QUICK_RATE;
+        v.addEventListener("ended", end, { once: true });
+        v.requestVideoFrameCallback(onFrame);
+        v.play().catch(() => end());
+      });
+    });
+    v.playbackRate = 1;
+  } else {
+    // navigateur sans requestVideoFrameCallback : une image tous les dixièmes de seconde
+    for (let t = 0; t < S.dur && !S.stop; t += 0.1) {
+      await seek(v, t); step(t);
+      while (queue.length > 12 && !S.stop) await sleep(50);
+      if (Math.round(t * 10) % 10 === 0) { setPhase("ph-scan", Math.round(t * 10), Math.round(S.dur * 10), fmtTC(t, S.fps)); await sleep(0); }
+    }
   }
+  if (cur) { cur.t1 = S.dur; emit(cur); }
+  setPhase("ph-scan", 1, 1, `${queued} textes repérés`);
+  ticker.textContent = "Fin de la lecture des textes…";
+  finished = true; await consumer;
+  if (S.stop) return null;
+  return samples;
 }
 
 function sampleParas(s) {
@@ -931,6 +1122,7 @@ function containment(a, b) {
   return hit / (A.length - 1);
 }
 function sameText(trText, pText, continuous) {
+  if (S.quick) { const A = normKey(trText), B = normKey(pText); return !!A && !!B && 1 - lev(A, B) / Math.max(A.length, B.length) >= 0.8; }
   if (related(trText, pText)) return true;
   return containment(trText, pText) >= (continuous ? 0.62 : 0.8);
 }
@@ -954,7 +1146,7 @@ function buildTracks(samples, step) {
     for (let j = i + 1; j < done.length; j++) {
       const a = done[i], b = done[j];
       if (b.firstSi > a.lastSi + 2) continue;
-      if (!boxOverlap(a.box, b.box) || containment(longest(a), longest(b)) < 0.62) continue;
+      if (!boxOverlap(a.box, b.box) || (S.quick ? !sameText(longest(a), longest(b)) : containment(longest(a), longest(b)) < 0.62)) continue;
       a.obs.push(...b.obs); a.lastSi = Math.max(a.lastSi, b.lastSi); a.firstSi = Math.min(a.firstSi, b.firstSi); a.box = unionBox(a.box, b.box);
       done.splice(j, 1); j = i;
     }
@@ -980,7 +1172,31 @@ function buildTracks(samples, step) {
     });
   }
   tracks.sort((a, b) => a.tIn - b.tIn);
+  if (S.quick) mergeFragments(tracks, samples);
   return tracks;
+}
+/* Mode rapide : un paragraphe qui s'écrit ou s'efface laisse des lectures partielles brèves.
+   Une lecture courte entièrement contenue dans un texte voisin est rattachée à ce texte. */
+function mergeFragments(tracks, samples) {
+  for (let changed = true; changed;) {
+    changed = false;
+    for (let i = 0; i < tracks.length && !changed; i++) {
+      const f = tracks[i], lf = normKey(f.text).length;
+      if (lf < 5) continue;
+      for (let j = 0; j < tracks.length; j++) {
+        const g = tracks[j]; if (i === j) continue;
+        const lg = normKey(g.text).length;
+        if (lg <= lf || !boxOverlap(f.box, g.box)) continue;
+        const gap = Math.max(f.tIn - g.tOut, g.tIn - f.tOut);
+        if (gap > 0.5 || containment(f.text, g.text) < 0.85) continue;
+        if (!(f.tOut - f.tIn < 1.0 || lf >= 0.7 * lg)) continue;
+        g.firstSi = Math.min(g.firstSi, f.firstSi); g.lastSi = Math.max(g.lastSi, f.lastSi);
+        g.tIn = samples[g.firstSi].t; g.tOut = g.lastSi + 1 < samples.length ? samples[g.lastSi + 1].t : S.dur;
+        g.box = unionBox(g.box, f.box); g.obsBoxes = [...(g.obsBoxes || []), ...(f.obsBoxes || [])]; g.nObs = (g.nObs || 1) + (f.nObs || 1);
+        tracks.splice(i, 1); changed = true; break;
+      }
+    }
+  }
 }
 function unionBox(a, b) { const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y); return { x, y, w: Math.max(a.x + a.w, b.x + b.w) - x, h: Math.max(a.y + a.h, b.y + b.h) - y }; }
 
@@ -1025,7 +1241,7 @@ async function refineTracks(sc, tracks, samples) {
     const at = async (i) => {
       const hit = memo.find((m) => m.pair === i && Math.min(m.R.y1, R.y1) - Math.max(m.R.y0, R.y0) > 0.5 * Math.min(m.R.y1 - m.R.y0, R.y1 - R.y0) && Math.min(m.R.x1, R.x1) > Math.max(m.R.x0, R.x0));
       if (hit) return hit.f;
-      const f = await transition(samples[i].t, samples[i + 1].t, R); memo.push({ pair: i, R, f }); return f;
+      const f = await transition(samples[i + 1].tPrev != null ? samples[i + 1].tPrev : samples[i].t, samples[i + 1].t, R); memo.push({ pair: i, R, f }); return f;
     };
     if (tr.firstSi > 0) { const f = await at(tr.firstSi - 1); if (f != null) tr.tIn = f / fps; }
     if (tr.lastSi + 1 < samples.length) { const f = await at(tr.lastSi); if (f != null) tr.tOut = f / fps; }
@@ -1098,7 +1314,7 @@ function decorReason(t, unknown) {
   if (!words) return "aucun mot lisible";
   if (unknown / words > 0.5 && (t.conf < 85 || dur < 0.8)) return "mots illisibles ou inconnus";
   if (!/[a-zà-ÿœ]/.test(t.text) && words <= 3 && dur < 1.5) return "sigle ou enseigne affiché brièvement";
-  if (t.nObs === 1 && t.conf < 90 && words <= 2) return "lu sur une seule image";
+  if (!S.quick && t.nObs === 1 && t.conf < 90 && words <= 2) return "lu sur une seule image";
   return "";
 }
 /* Règles complémentaires : fautes fréquentes en sous-titrage que Grammalecte laisse passer. */
@@ -1255,7 +1471,7 @@ function updateStats() {
 function tcButton(t) {
   const b = document.createElement("button"); b.type = "button"; b.className = "tc";
   const outLast = Math.max(t.tIn, t.tOut - 1 / S.fps);
-  b.innerHTML = `${fmtTC(t.tIn, S.fps)}<br>${fmtTC(outLast, S.fps)}<small>${t.tcExact ? "à l'image près" : "± " + $("#step").selectedOptions[0].value.replace(".", ",") + " s"} · voir</small>`;
+  b.innerHTML = `${fmtTC(t.tIn, S.fps)}<br>${fmtTC(outLast, S.fps)}<small>${t.tcExact ? "à l'image près" : "approximatif"} · voir</small>`;
   b.title = "Afficher ce texte dans la vidéo";
   b.addEventListener("click", () => showInPlayer(t));
   return b;
