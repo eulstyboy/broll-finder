@@ -25,9 +25,10 @@ html:has(.eulst-lab),html:has(.eulst-lab) body{height:100%;overflow:hidden;overs
 .eulst-lab .cats button[aria-current="true"]{color:var(--ink);background:var(--item);border-color:var(--item)}
 .eulst-lab .cats button:focus-visible{outline:2px solid var(--bone);outline-offset:2px}
 .eulst-lab .cats .c{opacity:.55;font-variant-numeric:tabular-nums}
-/* logo d'eulst : SVG en couleur courante, ombre dure comme les étiquettes ; bleu de marque au survol */
-.eulst-lab .mark{display:block;width:34px;height:34px;color:var(--bone);filter:drop-shadow(2px 2px 0 #000);transition:color .15s steps(2)}
+/* logo d'eulst en pixel art : 2 px CSS par case (17 cases = 34 px, 15 cases = 30 px en mobile), ombre dure d'une case ; bleu de marque au survol */
+.eulst-lab .mark{display:block;width:34px;height:34px;align-self:start;color:var(--bone);filter:drop-shadow(2px 2px 0 #000);transition:color .15s steps(2)}
 .eulst-lab .mark svg{display:block;width:100%;height:100%;fill:currentColor}
+.eulst-lab .mark .g15{display:none}
 .eulst-lab .mark:hover{color:var(--brand)}
 .eulst-lab .mark:focus-visible{outline:2px solid var(--bone);outline-offset:4px}
 .eulst-lab .count{font-family:var(--font-label);font-size:.72rem;letter-spacing:.12em;color:var(--dim);text-transform:uppercase;font-variant-numeric:tabular-nums}
@@ -91,6 +92,8 @@ html:has(.eulst-lab),html:has(.eulst-lab) body{height:100%;overflow:hidden;overs
   .eulst-lab .cats{gap:4px}
   .eulst-lab .cats button{font-size:.6rem;padding:5px 5px;letter-spacing:.06em;gap:.35em}
   .eulst-lab .mark{width:30px;height:30px}
+  .eulst-lab .mark .g17{display:none}
+  .eulst-lab .mark .g15{display:block}
   .eulst-lab .index .sec{font-size:0;padding:0;height:10px}
   .eulst-lab .slot{padding-inline:40px;row-gap:8px;padding-block-start:calc(env(safe-area-inset-top,0px) + 108px)}
   .eulst-lab .index{left:8px;gap:2px}
