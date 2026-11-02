@@ -45,3 +45,14 @@ Chaque projet appartient à un rayon via le champ `section` (`"outil"`, `"experi
 `public/bille/` et `public/lupercalia/` contiennent chacun un `manifest.webmanifest`, des icônes (tirées des faces de cube) et un `sw.js`. Les jeux s’installent depuis le navigateur (Chrome : icône d’installation ou menu « Installer l’application » ; Safari iOS : Partager → « Sur l’écran d’accueil »), s’ouvrent en plein écran, en portrait, et restent jouables hors ligne après la première visite.
 
 Le service worker sert les fichiers du jeu depuis le réseau d’abord : une mise à jour poussée est visible au prochain lancement, sans changer de version. Les polices et Three.js sont préchargés à l’installation. Les scores (`/api/…`) ne passent jamais par le cache. Pour forcer un nettoyage complet du cache, incrémenter `CACHE` dans le `sw.js` du jeu.
+
+## Finitions de la vitrine (nov. 2026)
+
+- Partage : `public/partage.png` (1200 × 630), cubes de la vitrine en pixel art, logo et « eulst.app ». Balises Open Graph et Twitter écrites par `share()` dans `src/app/_site.ts` (titre « eulst — outils & explorations », `og:locale` fr_FR, `summary_large_image`). L'image a été générée hors du dépôt à partir des faces de `lab.js` et des données de la vitrine, puis capturée dans Chrome sans tête.
+- `layout.tsx` ne porte plus les métadonnées « B-Roll Finder » : titre et description d'eulst.app par défaut, `metadataBase` sur `https://eulst.app`. `/broll` garde son titre et passe en `noindex`.
+- Mentions légales : `/mentions-legales/`, liées depuis le pied de la vitrine. Les durées et réglages des classements y sont décrits d'après les routes (`bille-scores` : 500 meilleurs scores, `scores/lupercalia` : 100 ; compteur par adresse IP effacé après 60 s).
+- `/robots.txt` et `/sitemap.xml` (`robots.ts`, `sitemap.ts`).
+- Statistiques GoatCounter sans cookie (`public/stats.js`), chemins préfixés par l'hôte.
+- Zones tactiles d'au moins 44 × 44 px en mobile (logo, rayons, numéros, lien des mentions). Sur les écrans mobiles de moins de 620 px de haut, les étiquettes sont masquées et le cube peut descendre à 150 px pour que la description ne chevauche plus l'indication du bas.
+- Éditeur : champ « Rayon » (Outils, Expériences, Le studio, Jeux) qui écrit `section` ; liste des identifiants déjà pris à jour.
+- Ménage : SVG par défaut de Next (`file`, `globe`, `next`, `vercel`, `window`) supprimés, référencés nulle part. Les polices Geist restent : `globals.css` les donne à Tailwind (`font-sans`, `font-mono`), utilisées par `/broll` et l'ancien accueil.
