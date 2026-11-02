@@ -37,7 +37,7 @@ export default function MentionsLegales() {
           </p>
           <p>
             Entrepreneur individuel<br />
-            SIRET : 528 772 098 [À VÉRIFIER]<br />
+            SIREN : 528 772 098<br />
             TVA intracommunautaire : FR34528772098
           </p>
           <p>Directeur de la publication : Raphaël Dahan</p>
