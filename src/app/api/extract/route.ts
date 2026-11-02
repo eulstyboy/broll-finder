@@ -20,11 +20,13 @@ export async function POST(req: Request) {
       
       // Utilisation de pdf2json (100% JavaScript, aucun crash serveur)
       text = await new Promise((resolve, reject) => {
+        // Chargement à la demande, voulu : pdf2json est un module CommonJS utilisé seulement pour les PDF.
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const PDFParser = require("pdf2json");
         // Le paramètre "1" force le mode "Texte Brut" (sans chercher à lire les images)
         const pdfParser = new PDFParser(null, 1); 
 
-        pdfParser.on("pdfParser_dataError", (errData: any) => reject(errData.parserError));
+        pdfParser.on("pdfParser_dataError", (errData: { parserError: unknown }) => reject(errData.parserError));
         
         pdfParser.on("pdfParser_dataReady", () => {
           // On récupère le texte et on nettoie les sauts de ligne étranges

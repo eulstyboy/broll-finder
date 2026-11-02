@@ -14,6 +14,9 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Figma plug-in: plain scripts for the Figma runtime, ui.html is generated
     "figma-plugin/**",
+    // Code tiers copié tel quel (Grammalecte, PaddleOCR, ONNX Runtime) : ne pas le modifier ni le linter
+    "public/coquille/grammalecte/**",
+    "public/coquille/vendor/**",
   ]),
 ]);
 

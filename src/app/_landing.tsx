@@ -68,6 +68,8 @@ export default function Landing() {
       <a className={styles.skipLink} href="#projects">Aller aux projets</a>
       <div className={styles.shell}>
         <header className={styles.header}>
+          {/* Rechargement complet voulu : la vitrine démarre son script au chargement de la page. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a href="/" className={styles.brand} aria-label="Eulst — accueil">
             {brand.logo ? (
               // Un fichier de logo configurable, sans contrainte de dimensions ou de format Next Image.
