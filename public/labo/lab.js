@@ -164,7 +164,7 @@ function start(noThree) {
     links.forEach(function (b, i) { b.setAttribute("aria-current", i === cur ? "true" : "false"); });
     cats.forEach(function (b) { b.setAttribute("aria-current", b.dataset.cat === a.section ? "true" : "false"); });
     var slot = $("slot"); slot.classList.remove("enter"); void slot.offsetWidth; slot.classList.add("enter");
-    $("live").textContent = a.name + ", " + (cur + 1) + " sur " + N;
+    $("live").textContent = a.name + (a.shelf ? ", " + a.shelf : "") + ", " + (cur + 1) + " sur " + N;
   }
 
   /* ---------- state ---------- */

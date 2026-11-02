@@ -16,8 +16,8 @@ export type Project = {
   // Face du cube en pixel art (générée par l'éditeur de projet) : palette + lignes d'index (0-9, a-z).
   // 8, 16 ou 32 lignes. Sans face, le cube garde son dessin par défaut.
   face?: { palette: string[]; rows: string[] };
-  // Rayon de la vitrine : outils, expériences ou jeux (ordre d'affichage sur l'accueil).
-  section?: "outil" | "experience" | "jeu";
+  // Rayon de la vitrine : outils, expériences, le studio ou jeux (ordre d'affichage sur l'accueil).
+  section?: "studio" | "outil" | "experience" | "jeu";
   visible: boolean;
 };
 
@@ -66,6 +66,40 @@ export const projects: Project[] = [
     color: "#ff4f9a",
     traits: ["Suivi du regard", "Caméra", "Son"],
     section: "experience",
+    visible: true,
+  },
+  {
+    id: "eulst-fr",
+    name: "eulst.fr",
+    category: "Studio · Motion design",
+    description: "Le portfolio de motion design d’eulst. Fais défiler les projets du studio, image par image.",
+    href: "https://eulst.fr",
+    access: "public",
+    artwork: "generic",
+    color: "#4d5eff",
+    traits: ["Motion design", "Portfolio", "Logo vivant"],
+    face: {
+      palette: ["#141414", "#eeece6"],
+      rows: [
+        "0000000100000000",
+        "0000111100000000",
+        "0000111000000000",
+        "0111011000000000",
+        "0011000000111100",
+        "0010000011111110",
+        "0011100011111100",
+        "0111100001111100",
+        "1111100011111100",
+        "1111111111111110",
+        "0110001111000011",
+        "0000001110000000",
+        "0000001110000000",
+        "0000000110000000",
+        "0000000100000000",
+        "0000000100000000",
+      ],
+    },
+    section: "studio",
     visible: true,
   },
   {

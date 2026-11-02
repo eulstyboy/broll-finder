@@ -10,10 +10,17 @@ const pad = (n: number) => String(n).padStart(2, "0");
 const SECTIONS = [
   { id: "outil", label: "Outils" },
   { id: "experience", label: "Expériences" },
+  { id: "studio", label: "Le studio" },
   { id: "jeu", label: "Jeux" },
 ] as const;
 const sectionRank = (id: string) => SECTIONS.findIndex((x) => x.id === id);
 const isExternal = (href: string) => /^https?:\/\//.test(href);
+
+// Logo d'eulst (E / chauve-souris) en pixel art, dans sa pose de repos sur eulst.fr (js/logo.js projeté
+// X 27,1° · Y −19° · Z 0,9°) redessiné case par case : 17 × 17 sur ordinateur (34 px), 15 × 15 en mobile (30 px),
+// soit 2 px CSS par case aux deux tailles. Le favicon (app/icon.svg) et la face du cube reprennent la grille 16 × 16.
+const LOGO_17 = "M7 0h1v1H7zM4 1h4v1H4zM4 2h4v1H4zM2 3h6v1H2zM1 4h3v1H1zM6 4h1v1H6zM13 4h2v1H13zM3 5h1v1H3zM10 5h6v1H10zM2 6h4v1H2zM9 6h7v1H9zM1 7h4v1H1zM9 7h6v1H9zM1 8h4v1H1zM9 8h6v1H9zM0 9h16v1H0zM0 10h4v1H0zM6 10h11v1H6zM6 11h4v1H6zM6 12h4v1H6zM7 13h3v1H7zM7 14h2v1H7zM7 15h2v1H7zM7 16h1v1H7z";
+const LOGO_15 = "M6 0h1v1H6zM4 1h3v1H4zM3 2h4v1H3zM1 3h3v1H1zM5 3h1v1H5zM2 4h1v1H2zM9 4h4v1H9zM2 5h1v1H2zM4 5h1v1H4zM7 5h7v1H7zM1 6h4v1H1zM8 6h5v1H8zM1 7h3v1H1zM8 7h5v1H8zM0 8h14v1H0zM0 9h3v1H0zM5 9h5v1H5zM12 9h3v1H12zM5 10h4v1H5zM6 11h3v1H6zM6 12h2v1H6zM6 13h2v1H6zM7 14h1v1H7z";
 
 export default function Lab() {
   const items = projects
@@ -28,6 +35,7 @@ export default function Lab() {
       color: p.color ?? "#4d5eff",
       face: p.face ?? null,
       section: p.section ?? "outil",
+      shelf: SECTIONS.find((x) => x.id === (p.section ?? "outil"))?.label ?? "",
     }))
     .sort((a, b) => sectionRank(a.section) - sectionRank(b.section));
   const shelves = SECTIONS.map((sec) => ({
@@ -43,13 +51,16 @@ export default function Lab() {
     <div className="eulst-lab" id="lab" style={{ ["--item" as string]: first?.color }}>
       {/* Feuille statique propre à cet accueil, chargée seulement sur cette page. */}
       {/* eslint-disable-next-line @next/next/no-css-tags */}
-      <link rel="stylesheet" href="/labo/lab.css?v=7" precedence="default" />
+      <link rel="stylesheet" href="/labo/lab.css?v=9" precedence="default" />
       <canvas id="gl" aria-hidden="true" />
       <div className="crt" aria-hidden="true" />
 
       <div className="hud" id="hud">
         <header className="top">
-          <a className="mark" href={brand.website}>eulst<span>.app</span></a>
+          <a className="mark" href={brand.website} aria-label="eulst.fr, le portfolio d’eulst">
+            <svg className="g17" viewBox="0 0 17 17" shapeRendering="crispEdges" aria-hidden="true" focusable="false"><path d={LOGO_17} /></svg>
+            <svg className="g15" viewBox="0 0 15 15" shapeRendering="crispEdges" aria-hidden="true" focusable="false"><path d={LOGO_15} /></svg>
+          </a>
           <nav className="cats" aria-label="Catégories">
             {shelves.map((sec) => (
               <button type="button" key={sec.id} data-cat={sec.id} data-i={sec.first} aria-current={first?.section === sec.id ? "true" : "false"}>
@@ -63,7 +74,7 @@ export default function Lab() {
         <ul className="index" id="index" aria-label="Projets">
           {items.map((p, i) => [
             i === 0 || items[i - 1].section !== p.section ? (
-              <li className="sec" key={`sec-${p.section}`} aria-hidden="true">{SECTIONS.find((x) => x.id === p.section)?.label}</li>
+              <li className="sec" key={`sec-${p.section}`} aria-hidden="true">{p.shelf}</li>
             ) : null,
             <li key={p.id}>
               <a href={p.url} data-i={i} aria-current={i === 0 ? "true" : "false"} {...(isExternal(p.url) ? { target: "_blank", rel: "noopener" } : {})}>
@@ -100,7 +111,7 @@ export default function Lab() {
       </div>
 
       <script id="lab-data" type="application/json" dangerouslySetInnerHTML={{ __html: data }} />
-      <script src="/labo/lab.js?v=7" async />
+      <script src="/labo/lab.js?v=8" async />
     </div>
   );
 }
