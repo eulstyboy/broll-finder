@@ -16,14 +16,69 @@ export type Project = {
   // Face du cube en pixel art (générée par l'éditeur de projet) : palette + lignes d'index (0-9, a-z).
   // 8, 16 ou 32 lignes. Sans face, le cube garde son dessin par défaut.
   face?: { palette: string[]; rows: string[] };
-  // Rayon de la vitrine : outils, expériences ou jeux (ordre d'affichage sur l'accueil).
-  section?: "outil" | "experience" | "jeu";
+  // Rayon de la vitrine : le studio, outils, expériences ou jeux (ordre d'affichage sur l'accueil).
+  section?: "studio" | "outil" | "experience" | "jeu";
   visible: boolean;
+  // Affiche le projet sur les prévisualisations Vercel même avec visible: false, jamais en production.
+  // Sert à juger une carte avant sa mise en ligne.
+  apercu?: boolean;
 };
 
 // Dupliquer une entrée pour ajouter un projet. visible: false le masque de l'accueil.
 // Ce réglage ne change jamais la protection du projet ou de son API.
 export const projects: Project[] = [
+  {
+    id: "eulst-fr",
+    name: "eulst.fr",
+    category: "Studio · Motion design",
+    description: "Le portfolio de motion design d’eulst. Fais défiler les projets du studio, image par image.",
+    href: "https://eulst.fr",
+    access: "public",
+    artwork: "generic",
+    color: "#4d5eff",
+    traits: ["Motion design", "Portfolio", "Logo vivant"],
+    face: {
+      palette: ["#141414", "#eeece6", "#4d5eff"],
+      rows: [
+        "22222222222222222222222222222222",
+        "22222222222222222222222222222222",
+        "22000000000000000000000000000022",
+        "22000000000000011000000000000022",
+        "22000000011100011100000000000022",
+        "22000000011111111100000000000022",
+        "22000000001111111110000000000022",
+        "22000000001111111110000000000022",
+        "22000000001111111100000000000022",
+        "22000000011111111100000000000022",
+        "22000011111111111000000000000022",
+        "22001111111101111000000000000022",
+        "22011111111000111000000000000022",
+        "22001111111000010000000011000022",
+        "22000011111000000000001111110022",
+        "22000000111000000001111111111022",
+        "22000000011000000011111111111022",
+        "22000000010011100001111111100022",
+        "22000000111111100000111111100022",
+        "22000001111111100000011111100022",
+        "22000001111111000000111111110022",
+        "22000001111111011111111111110022",
+        "22000001111111111111111000110022",
+        "22000001111111001111110000000022",
+        "22000001111110000111110000000022",
+        "22000000000000000111110000000022",
+        "22000000000000000011100000000022",
+        "22000000000000000011100000000022",
+        "22000000000000000001000000000022",
+        "22000000000000000000000000000022",
+        "22222222222222222222222222222222",
+        "22222222222222222222222222222222",
+      ],
+    },
+    section: "studio",
+    // Masqué tant que le nouveau eulst.fr n'est pas en ligne : passer à true après le déploiement.
+    visible: false,
+    apercu: true,
+  },
   {
     id: "hofmann-trace",
     name: "Hofmann Trace",
