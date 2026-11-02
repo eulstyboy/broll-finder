@@ -8,9 +8,9 @@ const pad = (n: number) => String(n).padStart(2, "0");
 
 // Rayons de la vitrine, dans l'ordre d'affichage. Un projet sans section va dans « Outils ».
 const SECTIONS = [
-  { id: "studio", label: "Le studio" },
   { id: "outil", label: "Outils" },
   { id: "experience", label: "Expériences" },
+  { id: "studio", label: "Le studio" },
   { id: "jeu", label: "Jeux" },
 ] as const;
 const sectionRank = (id: string) => SECTIONS.findIndex((x) => x.id === id);
