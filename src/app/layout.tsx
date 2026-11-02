@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { DESCRIPTION, SITE_URL, TITLE, share } from "./_site";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -12,10 +13,12 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Valeurs par défaut du site. Chaque page publique précise son titre, sa description et son og:url (voir _site.ts).
 export const metadata: Metadata = {
-  title: "B-Roll Finder — Du script au storyboard",
-  description:
-    "Transformez un script en plans de coupe : recherche de banques de stock et export storyboard.",
+  metadataBase: new URL(SITE_URL),
+  title: TITLE,
+  description: DESCRIPTION,
+  ...share(TITLE, DESCRIPTION),
 };
 
 export default function RootLayout({

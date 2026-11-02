@@ -23,7 +23,11 @@ Langue de travail : **français** (interface, textes, commentaires, messages de 
 | --- | --- |
 | `src/app/[[...slug]]/page.tsx` | Route fourre-tout : `/` affiche la vitrine (`_lab.tsx`), `/broll` l'outil privé B-Roll (`_tool.tsx`), tout le reste en 404. |
 | `src/app/_projects.ts` | **Liste des projets de la vitrine** (une entrée par app). Source unique de la vitrine. |
-| `src/app/_lab.tsx` + `public/labo/lab.js`, `lab.css` | Vitrine « laboratoire » : un cube 3D en pixel art par projet, scroll à résistance, rayons Outils / Expériences / Jeux, vibrations au scroll. |
+| `src/app/_lab.tsx` + `public/labo/lab.js`, `lab.css` | Vitrine « laboratoire » : un cube 3D en pixel art par projet, scroll à résistance, rayons Outils / Expériences / Le studio / Jeux, vibrations au scroll, lien discret vers les mentions légales. |
+| `src/app/_site.ts` | Titre et description publics d'eulst.app, image de partage (`public/partage.png`, 1200 × 630) et fonction `share()` qui écrit les balises Open Graph et Twitter d'une page. |
+| `src/app/mentions-legales/` | Page `/mentions-legales/` (éditeur, hébergeur, licences, données personnelles), dans le style de la vitrine, polices servies par `next/font`. |
+| `src/app/robots.ts`, `src/app/sitemap.ts` | `/robots.txt` (bloque `/broll` et `/api/`) et `/sitemap.xml` (vitrine, Hofmann Trace, Bille, Lupercalia, mentions). |
+| `src/app/_stats.tsx`, `public/stats.js` | Statistiques GoatCounter sans cookie, voir « Statistiques ». |
 | `src/app/_landing.tsx`, `landing.module.css` | Ancien accueil, conservé comme solution de repli (non affiché). |
 | `src/app/_tool.tsx`, `src/app/api/analyze*`, `src/app/api/extract` | B-Roll Finder, outil privé (IA Anthropic), derrière mot de passe. |
 | `src/app/api/bille-scores/route.ts` | Classement en ligne de Bille Foraine (Upstash Redis). **Public.** |
@@ -47,13 +51,15 @@ Langue de travail : **français** (interface, textes, commentaires, messages de 
 | `/luciole/` | `public/luciole/` | non | Prototype : chasse au son, gyroscope + audio spatialisé, mode WebXR. |
 | `/coquille/` | `public/coquille/` | non | Relecture des textes incrustés dans une vidéo : OCR PaddleOCR (ONNX Runtime Web) et Grammalecte dans le navigateur. Voir `public/coquille/LISEZMOI.txt`. Grammalecte est sous **GPL-3.0**. |
 | `/edit/` et `edit.eulst.app` | `public/edit/` | non | Éditeur qui génère une entrée de `_projects.ts` (fiche, couleur, face de cube en pixel art). |
-| `/broll` | `_tool.tsx` | masqué | Outil privé, mot de passe. |
+| `/mentions-legales/` | `src/app/mentions-legales/` | lien en pied de vitrine | Mentions légales et données personnelles. |
+| `/broll` | `_tool.tsx` | masqué | Outil privé, mot de passe. Jamais indexé (`noindex`, `robots.txt`). |
 
 ## Ajouter ou modifier une app
 
 1. Mettre l'app dans `public/<slug>/index.html` : HTML autonome, JavaScript sans étape de build. Les bibliothèques viennent d'un CDN à **version figée** (ex. `cdnjs …/three.js/r128/three.min.js`) ou sont copiées dans un dossier `vendor/` avec leur licence.
 2. Ajouter la réécriture `{ source: "/<slug>/", destination: "/<slug>/index.html" }` dans `beforeFiles` (`next.config.ts`). Sans elle, la route fourre-tout répond 404. Le slash final est voulu (`trailingSlash: true`) : il garde les chemins relatifs et le périmètre des service workers corrects.
-3. Pour la montrer dans la vitrine, ajouter une entrée dans `src/app/_projects.ts` : `id`, `name`, `category`, `description`, `href`, `access: "public"`, `color`, `traits` (2 ou 3 étiquettes), `section` (`"outil"`, `"experience"` ou `"jeu"`), `face` (pixel art, généré sur edit.eulst.app) et `visible: true`.
+3. Pour la montrer dans la vitrine, ajouter une entrée dans `src/app/_projects.ts` : `id`, `name`, `category`, `description`, `href`, `access: "public"`, `color`, `traits` (2 ou 3 étiquettes), `section` (`"outil"`, `"experience"`, `"studio"` ou `"jeu"`, choisi dans l'éditeur au champ « Rayon »), `face` (pixel art, généré sur edit.eulst.app) et `visible: true`.
+   Si l'app est servie par ce dépôt, l'ajouter aussi à `src/app/sitemap.ts`. Si elle envoie des données (scores, caméra, IA), mettre à jour la section « Données personnelles » de `src/app/mentions-legales/page.tsx`.
 4. Quand un script change, monter son paramètre de version (`game.js?v=…`, `lab.js?v=…`) pour contourner le cache des navigateurs.
 
 ## Vitrine (`_lab.tsx`, `public/labo/`)
@@ -63,6 +69,8 @@ Langue de travail : **français** (interface, textes, commentaires, messages de 
 - La face d'un cube vient de `face` (palette + lignes d'index en base 36, 8, 16 ou 32 lignes). Sans `face`, un dessin par défaut de `DRAW` dans `lab.js`.
 - Vibrations : `navigator.vibrate` sur Android, astuce de l'interrupteur `<input switch>` caché sur iOS. Diagnostic : ajouter `#haptique` à l'URL.
 - Accessibilité à préserver : navigation clavier (flèches, chiffres, Début/Fin), `prefers-reduced-motion`, annonces `aria-live`.
+- Mobile (≤ 760 px) : logo, boutons de rayons, numéros 01 à 06 et lien des mentions ont une zone de clic d'au moins 44 × 44 px (pseudo-élément `::after` ou marge intérieure invisible). Garder cette règle pour tout nouvel élément cliquable, sans chevauchement entre zones.
+- Liens entre la vitrine et les mentions : de simples `<a>` (chargement complet voulu, `lab.js` écoute la molette et le toucher sur toute la fenêtre).
 
 ## Jeux installables (PWA)
 
@@ -72,6 +80,13 @@ Hofmann Trace, Bille Foraine et Lupercalia ont chacun `manifest.webmanifest`, de
 - **Ne jamais changer l'`id` d'un manifeste** sans raison : cela crée une nouvelle app et casse les installations existantes. Bille a déjà changé une fois (`/bille/app`) pour réparer une installation corrompue.
 - Les `sw.js` sont servis sans cache (`next.config.ts`) ; pour vider complètement le cache d'un jeu, incrémenter `CACHE` dans son `sw.js`.
 - Gyroscope, caméra, micro et WebXR exigent le HTTPS : tester sur téléphone via une URL de prévisualisation Vercel, pas en local.
+
+## Partage, référencement et statistiques
+
+- Titre et description dans `src/app/_site.ts`. « eulst » toujours en minuscules dans les textes publics.
+- Image de partage : `public/partage.png` (1200 × 630, pixel art). Fichier fixe, déclaré par `share()` : les fichiers `opengraph-image` de Next ne sont pas ajoutés aux pages qui définissent leur propre `openGraph`. À refaire à la main si la vitrine change beaucoup (même nom de fichier ; les réseaux gardent l'ancienne image en cache un moment).
+- URL canonique : `https://eulst.app/` (`metadataBase` dans `layout.tsx`). `/robots.txt` et `/sitemap.xml` viennent de `robots.ts` et `sitemap.ts`. Hors plan : `/broll`, `/api/`, `/edit/`, `/coquille/`, `/luciole/`.
+- Statistiques : GoatCounter, compte `eulst` partagé avec eulst.fr (`https://eulst.goatcounter.com`). `public/stats.js` préfixe les chemins par l'hôte (`eulst.app/bille/`) et ne compte rien hors du domaine `eulst.app` (local, prévisualisations) ni avec Do Not Track ou Global Privacy Control. Chargé par la vitrine et les mentions (`_stats.tsx`, seulement si `VERCEL_ENV === "production"`) et par `index.html` de Hofmann Trace, Bille et Lupercalia (leurs service workers ignorent `/stats.js` et GoatCounter). Toute nouvelle mesure doit être décrite dans les mentions légales.
 
 ## API, données et secrets
 
@@ -99,7 +114,7 @@ npm run build      # next/font télécharge Geist depuis Google Fonts : le build
 npm run start      # puis vérifier les pages ci-dessous
 ```
 
-À vérifier après un changement de routes ou de configuration : `/`, `/hofmann-trace/`, `/bille/`, `/lupercalia/`, `/luciole/`, `/coquille/`, `/edit/`, chaque `manifest.webmanifest` et `sw.js`, `/broll` (doit demander le mot de passe si `BASIC_AUTH_PASSWORD` est défini) et une URL inconnue (404). Node 22.
+À vérifier après un changement de routes ou de configuration : `/`, `/mentions-legales/`, `/robots.txt`, `/sitemap.xml`, `/partage.png`, `/hofmann-trace/`, `/bille/`, `/lupercalia/`, `/luciole/`, `/coquille/`, `/edit/`, chaque `manifest.webmanifest` et `sw.js`, `/broll` (doit demander le mot de passe si `BASIC_AUTH_PASSWORD` est défini) et une URL inconnue (404). Node 22.
 
 ## Conventions
 

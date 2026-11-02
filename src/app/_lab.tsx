@@ -1,4 +1,5 @@
 import { brand, projects } from "./_projects";
+import Stats from "./_stats";
 
 // Accueil « laboratoire » : un objet par projet, scroll à résistance.
 // Le rendu serveur affiche le premier projet et la liste complète ; public/labo/lab.js anime le reste.
@@ -51,7 +52,7 @@ export default function Lab() {
     <div className="eulst-lab" id="lab" style={{ ["--item" as string]: first?.color }}>
       {/* Feuille statique propre à cet accueil, chargée seulement sur cette page. */}
       {/* eslint-disable-next-line @next/next/no-css-tags */}
-      <link rel="stylesheet" href="/labo/lab.css?v=9" precedence="default" />
+      <link rel="stylesheet" href="/labo/lab.css?v=10" precedence="default" />
       <canvas id="gl" aria-hidden="true" />
       <div className="crt" aria-hidden="true" />
 
@@ -105,13 +106,19 @@ export default function Lab() {
 
         <footer className="hint">
           <span id="hintMain">Force la molette pour changer d’objet</span>
-          <span className="keys"><kbd>↑</kbd> <kbd>↓</kbd> <kbd>1</kbd>–<kbd>{items.length}</kbd></span>
+          <span className="end">
+            {/* Chargement complet voulu : lab.js écoute la molette et le toucher sur toute la fenêtre. */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+            <a className="legal" href="/mentions-legales/">Mentions légales</a>
+            <span className="keys"><kbd>↑</kbd> <kbd>↓</kbd> <kbd>1</kbd>–<kbd>{items.length}</kbd></span>
+          </span>
         </footer>
         <p className="sr" aria-live="polite" id="live" />
       </div>
 
       <script id="lab-data" type="application/json" dangerouslySetInnerHTML={{ __html: data }} />
       <script src="/labo/lab.js?v=8" async />
+      <Stats />
     </div>
   );
 }

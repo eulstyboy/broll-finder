@@ -103,7 +103,11 @@ pre .k{color:var(--item)}
           <div class="field"><label class="label" for="f-name">Nom</label><input type="text" id="f-name" autocomplete="off"></div>
           <div class="field"><label class="label" for="f-id">Identifiant</label><input type="text" id="f-id" autocomplete="off" spellcheck="false"><span class="hint">Généré depuis le nom, modifiable.</span></div>
         </div>
-        <div class="field"><label class="label" for="f-cat">Catégorie</label><input type="text" id="f-cat" placeholder="Design · Dessin vectoriel"></div>
+        <div class="row2">
+          <div class="field"><label class="label" for="f-cat">Catégorie</label><input type="text" id="f-cat" placeholder="Design · Dessin vectoriel"></div>
+          <div class="field"><label class="label" for="f-section">Rayon</label>
+            <select id="f-section"><option value="outil">Outils</option><option value="experience">Expériences</option><option value="studio">Le studio</option><option value="jeu">Jeux</option></select></div>
+        </div>
         <div class="field"><label class="label" for="f-desc">Description</label><textarea id="f-desc" rows="3"></textarea></div>
         <div class="field"><label class="label" for="f-href">Lien</label><input type="text" id="f-href" placeholder="https://monapp.eulst.app ou /mon-outil/" spellcheck="false"></div>
         <div class="row2">
@@ -175,7 +179,7 @@ pre .k{color:var(--item)}
 <script>
 (function(){
 const $=id=>document.getElementById(id);
-const EXISTING=["hofmann-trace","rene-tiles","resonances","broll-finder"];
+const EXISTING=["hofmann-trace","rene-tiles","resonances","eulst-fr","lupercalia","bille-foraine","broll-finder"];
 const KEY="eulst-cube-editor-v1";
 const B36="0123456789abcdefghijklmnopqrstuvwxyz";
 
@@ -214,16 +218,17 @@ function example(){
   [[7,3],[8,3],[7,12],[8,12],[3,7],[3,8],[12,7],[12,8]].forEach(([x,y])=>g[y][x]=3);
   return{name:"Arabesques",id:"arabesques",idTouched:false,category:"Motifs · Génératif",
     description:"Des arabesques géométriques générées à partir de presets par pays et par région.",
-    href:"",access:"public",caption:"",traits:"Presets régionaux, Génératif",color:"#2ec4b6",visible:true,
+    href:"",access:"public",caption:"",traits:"Presets régionaux, Génératif",section:"outil",color:"#2ec4b6",visible:true,
     size:n,grid:g,custom:[],example:true};
 }
-function empty(){return{name:"",id:"",idTouched:false,category:"",description:"",href:"",access:"public",caption:"",traits:"",color:"#4d5eff",visible:true,size:16,grid:framed(16),custom:[],example:false};}
+function empty(){return{name:"",id:"",idTouched:false,category:"",description:"",href:"",access:"public",caption:"",traits:"",section:"outil",color:"#4d5eff",visible:true,size:16,grid:framed(16),custom:[],example:false};}
 try{const raw=localStorage.getItem(KEY);S=raw?JSON.parse(raw):example();}catch(e){S=example();}
 if(!S||!S.grid)S=example();
+if(!S.section)S.section="outil";
 let saveT;function save(){clearTimeout(saveT);saveT=setTimeout(()=>{try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}},250);}
 
 /* form */
-const F={name:$("f-name"),id:$("f-id"),category:$("f-cat"),description:$("f-desc"),href:$("f-href"),access:$("f-access"),caption:$("f-caption"),traits:$("f-traits")};
+const F={name:$("f-name"),id:$("f-id"),category:$("f-cat"),description:$("f-desc"),href:$("f-href"),access:$("f-access"),caption:$("f-caption"),traits:$("f-traits"),section:$("f-section")};
 const slug=s=>s.normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"");
 function fillForm(){
   Object.keys(F).forEach(k=>F[k].value=S[k]||"");
@@ -337,6 +342,7 @@ function code(face){
   if(S.caption)L.push(`    caption: ${esc(S.caption)},`);
   L.push(`    color: ${esc(S.color)},`);
   if(traits.length)L.push(`    traits: [${traits.map(esc).join(", ")}],`);
+  L.push(`    section: ${esc(S.section||"outil")},`);
   L.push("    face: {");
   L.push(`      palette: [${face.palette.map(esc).join(", ")}],`);
   L.push("      rows: [");
