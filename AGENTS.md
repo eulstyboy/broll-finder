@@ -64,13 +64,17 @@ Langue de travail : **français** (interface, textes, commentaires, messages de 
 
 ## Vitrine (`_lab.tsx`, `public/labo/`)
 
-- Rendu serveur : premier projet et liste complète dans le HTML, données injectées en JSON (`#lab-data`), puis `lab.js` anime le tout (Three.js r128 depuis cdnjs, canvas basse résolution volontaire pour l'effet pixel).
+- Rendu serveur : premier projet et liste complète dans le HTML, données injectées en JSON (`#lab-data`), puis `lab.js` anime le tout (canvas basse résolution volontaire pour l'effet pixel).
+- Three.js r128 est servi par le site (`public/labo/three.r128.min.js`, copie exacte du fichier de cdnjs, vérifiée par son empreinte SRI ; exclu du lint). `lab.js` démarre sans l'attendre (menu, molette, clavier, navigation) et monte les cubes 3D quand il arrive. Sans three.js ou sans WebGL (ou après 3 s d'attente), un cube 2D immobile est dessiné sur `canvas.gl2d` ; la 3D le remplace si three.js arrive ensuite.
+- **Hydratation** : `lab.js` et `logo.js` peuvent tourner avant que React ait repris la page. Tout ce qu'ils modifient doit donc être toléré par React : texte changé → `suppressHydrationWarning` sur l'élément ; liste réécrite (`#traits`, `#live`) → `dangerouslySetInnerHTML` ; élément ajouté → déjà présent dans le rendu serveur (`canvas.gl2d`, `canvas.anim` du logo). Sinon React lève l'erreur 418, redessine la page et les scripts restent branchés sur l'ancienne : plus de cube, menu en liens simples (bug de novembre 2026). Les attributs (`aria-current`, `href`, `hidden`, `style`) ne posent pas de problème.
+- Navigation calquée sur eulst.fr : marque (logo + « eulst.app », ramène au premier projet), « laboratoire » et « portfolio ↗ » (eulst.fr) au centre, icônes en pixels à droite : à propos (panneau `<dialog>`), contact (e-mail : le lien s'ouvre et l'adresse est copiée), liens (LinkedIn, Instagram). Textes de l'intro, de l'à propos, e-mail et liens : constantes en tête de `_lab.tsx`. Sous la navigation : l'intro puis les rayons ; `lab.js` place le projet sous ce bloc (`placeSlot`), quelle que soit la hauteur de l'intro.
+- Logo animé (`public/labo/logo.js`) : le loader d'eulst.fr (chauve-souris) rendu image par image hors du dépôt, réduit sur les grilles du logo (17 × 17 cases sur ordinateur, 15 × 15 en mobile, une case de marge), 46 images à 15 images/s puis 5 s sur le logo dessiné à la main, en boucle. Avec « réduire les animations » ou sans JS, le SVG statique reste. Pour régénérer les images, il faut le moteur du loader (projet eulst.fr) : ne pas retoucher les chaînes à la main.
 - Réglages de ressenti dans `lab.js` : `RESIST` (pixels de molette pour changer d'objet, actuellement 380), seuil tactile (20 % de la hauteur d'écran), vitesse de charge au clavier.
 - La face d'un cube vient de `face` (palette + lignes d'index en base 36, 8, 16 ou 32 lignes). Sans `face`, un dessin par défaut de `DRAW` dans `lab.js`.
 - Vibrations : `navigator.vibrate` sur Android, astuce de l'interrupteur `<input switch>` caché sur iOS. Diagnostic : ajouter `#haptique` à l'URL.
 - Accessibilité à préserver : navigation clavier (flèches, chiffres, Début/Fin), `prefers-reduced-motion`, annonces `aria-live`.
-- Mobile (≤ 760 px) : logo, boutons de rayons, numéros 01 à 06 et lien des mentions ont une zone de clic d'au moins 44 × 44 px (pseudo-élément `::after` ou marge intérieure invisible). Garder cette règle pour tout nouvel élément cliquable, sans chevauchement entre zones.
-- Liens entre la vitrine et les mentions : de simples `<a>` (chargement complet voulu, `lab.js` écoute la molette et le toucher sur toute la fenêtre).
+- Mobile (≤ 760 px) : marque, portfolio, icônes, boutons de rayons, numéros 01 à 06 et lien des mentions ont une zone de clic d'au moins 44 × 44 px (pseudo-élément `::after` ou marge intérieure invisible). Garder cette règle pour tout nouvel élément cliquable, sans chevauchement entre zones.
+- Liens entre la vitrine et les mentions : de simples `<a>` (chargement complet voulu, `lab.js` écoute la molette et le toucher sur toute la fenêtre). Pendant que l'à propos ou un menu est ouvert, la molette et le clavier ne changent pas d'objet.
 
 ## Jeux installables (PWA)
 
