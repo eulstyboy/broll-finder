@@ -37,7 +37,7 @@ const LINKS = [
 ];
 
 // Intro sous la navigation : pourquoi cette page existe. L'à propos raconte le parcours, l'intro le dit en une phrase.
-const INTRO = "J’ai toujours voulu que mes images se manipulent. Ici, elles le font : un atelier ouvert, en chantier permanent.";
+const INTRO = "Vous êtes dans le laboratoire d’eulst, motion designer qui expérimente ici ses idées d’objets interactifs.";
 const ABOUT = [
   "Depuis toujours, ce qui m’attire, ce sont les supports qu’on manipule : les jeux, les interfaces, les objets qui répondent quand on les touche. Mon métier, c’est l’image en mouvement ; ici, c’est l’image qu’on fait bouger soi-même.",
   "Longtemps, ces idées sont restées dans des carnets. Depuis que l’IA m’a donné les moyens de les construire, eulst.app est mon terrain d’expérimentation : chaque cube est une idée devenue outil, expérience ou jeu.",
