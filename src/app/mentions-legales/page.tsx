@@ -110,8 +110,8 @@ export default function MentionsLegales() {
           <h3>Hébergement et ressources tierces</h3>
           <p>
             Pour servir le site, Vercel traite l’adresse IP et les informations techniques de chaque requête dans ses journaux,
-            conservés [À VÉRIFIER]. La page d’accueil et plusieurs apps chargent leurs polices depuis Google Fonts ; la page d’accueil
-            et Lupercalia chargent Three.js depuis cdnjs (Cloudflare). Ces services reçoivent l’adresse IP du navigateur.
+            conservés [À VÉRIFIER]. La page d’accueil et plusieurs apps chargent leurs polices depuis Google Fonts ; Lupercalia
+            charge Three.js depuis cdnjs (Cloudflare). Ces services reçoivent l’adresse IP du navigateur.
           </p>
 
           <h3>Contact</h3>

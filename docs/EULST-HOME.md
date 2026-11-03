@@ -20,7 +20,7 @@ Avec `BASIC_AUTH_PASSWORD` configuré, B-Roll et ses API doivent continuer de de
 
 ## Accueil « laboratoire » (oct. 2026)
 
-L’accueil `/` affiche désormais `src/app/_lab.tsx` : un objet 3D par projet visible et public, avec un scroll à forte résistance. Les projets, leurs textes, leur couleur (`color`) et leurs étiquettes (`traits`) viennent toujours de `src/app/_projects.ts`. L’animation et le style sont dans `public/labo/lab.js` et `public/labo/lab.css` ; Three.js est chargé depuis cdnjs. Le réglage de résistance est `RESIST` dans `lab.js`.
+L’accueil `/` affiche désormais `src/app/_lab.tsx` : un objet 3D par projet visible et public, avec un scroll à forte résistance. Les projets, leurs textes, leur couleur (`color`) et leurs étiquettes (`traits`) viennent toujours de `src/app/_projects.ts`. L’animation et le style sont dans `public/labo/lab.js` et `public/labo/lab.css` ; Three.js r128 est servi par le site (`public/labo/three.r128.min.js`). Le réglage de résistance est `RESIST` dans `lab.js`.
 
 L’ancien accueil reste dans `src/app/_landing.tsx`. Pour y revenir, réimporter `Landing` dans `src/app/[[...slug]]/page.tsx`.
 
@@ -56,3 +56,11 @@ Le service worker sert les fichiers du jeu depuis le réseau d’abord : une mis
 - Zones tactiles d'au moins 44 × 44 px en mobile (logo, rayons, numéros, lien des mentions). Sur les écrans mobiles de moins de 620 px de haut, les étiquettes sont masquées et le cube peut descendre à 150 px pour que la description ne chevauche plus l'indication du bas.
 - Éditeur : champ « Rayon » (Outils, Expériences, Le studio, Jeux) qui écrit `section` ; liste des identifiants déjà pris à jour.
 - Ménage : SVG par défaut de Next (`file`, `globe`, `next`, `vercel`, `window`) supprimés, référencés nulle part. Les polices Geist restent : `globals.css` les donne à Tailwind (`font-sans`, `font-mono`), utilisées par `/broll` et l'ancien accueil.
+
+## Navigation, à propos et chargement (nov. 2026)
+
+- Bug corrigé : sur ordinateur, au premier chargement, les cubes manquaient et le menu de gauche ouvrait directement les liens. Cause : `lab.js` modifiait la page (titre brouillé, puis changement d'objet) avant que React l'ait reprise ; React voyait un texte différent (erreur 418), redessinait la page, et `lab.js` restait branché sur l'ancienne. Reproduit en retenant les fichiers de React dans Chrome sans tête. Corrigé côté page (voir « Hydratation » dans `AGENTS.md`), et three.js est maintenant servi par le site : `lab.js` n'attend plus cdnjs pour démarrer.
+- Navigation calquée sur eulst.fr : logo animé + « eulst.app » (retour au premier projet), « laboratoire » et « portfolio ↗ », icônes à propos / contact / liens. Contact : l'e-mail seul. Liens : LinkedIn et Instagram.
+- Sous la navigation : une intro d'une phrase (pourquoi cette page existe), puis les rayons. Le compteur 01/06 est passé en bas à droite.
+- À propos dans un panneau : intérêt de toujours pour les supports interactifs, eulst.app comme terrain d'expérimentation depuis que l'IA permet de construire les idées.
+- Logo : le loader d'eulst.fr en pixels, en boucle avec 5 s d'arrêt sur le logo (`public/labo/logo.js`).

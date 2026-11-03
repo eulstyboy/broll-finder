@@ -17,6 +17,8 @@ const eslintConfig = defineConfig([
     // Code tiers copié tel quel (Grammalecte, PaddleOCR, ONNX Runtime) : ne pas le modifier ni le linter
     "public/coquille/grammalecte/**",
     "public/coquille/vendor/**",
+    // three.js r128 minifié, servi tel quel par l'accueil (fichier de cdnjs, vérifié par son empreinte SRI)
+    "public/labo/three.r128.min.js",
   ]),
 ]);
 

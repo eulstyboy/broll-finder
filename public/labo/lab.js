@@ -1,16 +1,19 @@
 /* eulst.app — accueil laboratoire. Les projets viennent de src/app/_projects.ts (via #lab-data). */
 (function () {
-  var THREE_SRC = "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js";
-  function boot() {
-    if (window.THREE) return start();
+  /* three.js est servi par le site. La page démarre sans l'attendre (menu, molette, clavier) ; les cubes 3D arrivent quand il est chargé.
+     Avant, tout attendait cdnjs : s'il tardait ou était bloqué, ni les cubes ni le menu ne marchaient. */
+  var THREE_SRC = "/labo/three.r128.min.js";
+  var three = window.THREE ? "ok" : "load", onThree = null;
+  if (!window.THREE) {
     var s = document.createElement("script");
     s.src = THREE_SRC; s.async = true;
-    s.onload = function () { start(false); }; s.onerror = function () { start(true); };
+    s.onload = function () { three = "ok"; if (onThree) onThree(); };
+    s.onerror = function () { three = "err"; if (onThree) onThree(); };
     document.head.appendChild(s);
   }
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start); else start();
 
-function start(noThree) {
+function start() {
   var lab = document.getElementById("lab"), dataEl = document.getElementById("lab-data");
   if (!lab || !dataEl || lab.dataset.ready) return;
   lab.dataset.ready = "1";
@@ -25,15 +28,12 @@ function start(noThree) {
   var external = function (u) { return /^https?:\/\//.test(u); };
 
   /* ---------- three ---------- */
-  var T = !noThree && window.THREE, gl = false, renderer, scene, camera, rim, bgScene, bgCam, bgMat, items = [];
-  try {
-    if (T) {
-      renderer = new T.WebGLRenderer({ canvas: $("gl"), antialias: false, powerPreference: "high-performance" });
-      gl = true;
-    }
-  } catch (e) { gl = false; }
+  var T = null, gl = false, renderer, scene, camera, rim, bgScene, bgCam, bgMat, items = [];
 
-  function shade(hex, k) { var c = new T.Color(hex); c.multiplyScalar(k); return "#" + c.getHexString(); }
+  function shade(hex, k) {
+    var n = parseInt(hex.slice(1), 16);
+    return "#" + [n >> 16, (n >> 8) & 255, n & 255].map(function (v) { return Math.min(255, Math.round(v * k)).toString(16).padStart(2, "0"); }).join("");
+  }
   function rand(seed) { return function () { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }; }
   function frame(g, col) { g.fillStyle = "#17181d"; g.fillRect(0, 0, 64, 64); g.fillStyle = col; g.fillRect(0, 0, 64, 3); g.fillRect(0, 61, 64, 3); g.fillRect(0, 0, 3, 64); g.fillRect(61, 0, 3, 64); }
   var PI = Math.PI;
@@ -73,8 +73,24 @@ function start(noThree) {
     }
   }
 
-  var cube = { size: 1, x: 0, y: 0 }, visH = 1;
-  if (gl) {
+  function faceCanvas(app) {
+    var cv = document.createElement("canvas"); cv.width = cv.height = 64;
+    if (app.face && app.face.rows && app.face.rows.length) drawFace(cv.getContext("2d"), app.face);
+    else (DRAW[app.id] || DRAW.generic)(cv.getContext("2d"), app.color);
+    return cv;
+  }
+
+  var cube = { size: 1, x: 0, y: 0 }, visH = 1, WHITE = null, tint = null;
+  function initGL() {
+    if (gl) return;
+    T = window.THREE;
+    try {
+      if (T) {
+        renderer = new T.WebGLRenderer({ canvas: $("gl"), antialias: false, powerPreference: "high-performance" });
+        gl = true;
+      }
+    } catch (e) { gl = false; }
+    if (!gl) { fallback2D(); return; }
     renderer.setClearColor(0x0d0e11, 1); renderer.autoClear = false;
     scene = new T.Scene();
     camera = new T.PerspectiveCamera(35, 1, .1, 100); camera.position.set(0, 0, 7);
@@ -100,21 +116,57 @@ function start(noThree) {
     bgScene.add(new T.Mesh(new T.PlaneGeometry(2, 2), bgMat));
     var geo = new T.BoxGeometry(1, 1, 1);
     items = APPS.map(function (app, i) {
-      var cv = document.createElement("canvas"); cv.width = cv.height = 64;
-      if (app.face && app.face.rows && app.face.rows.length) drawFace(cv.getContext("2d"), app.face);
-      else (DRAW[app.id] || DRAW.generic)(cv.getContext("2d"), app.color);
-      var tex = new T.CanvasTexture(cv); tex.magFilter = T.NearestFilter; tex.minFilter = T.NearestFilter; tex.generateMipmaps = false;
+      var tex = new T.CanvasTexture(faceCanvas(app)); tex.magFilter = T.NearestFilter; tex.minFilter = T.NearestFilter; tex.generateMipmaps = false;
       var grp = new T.Group();
       var mat = new T.MeshLambertMaterial({ map: tex, emissive: new T.Color(app.color), emissiveIntensity: 0 });
       var outMat = new T.MeshBasicMaterial({ color: 0x000000, side: T.BackSide });
       var out = new T.Mesh(geo, outMat); out.scale.setScalar(1.1);
-      grp.add(out, new T.Mesh(geo, mat)); grp.visible = i === 0; scene.add(grp);
+      grp.add(out, new T.Mesh(geo, mat)); grp.visible = i === cur; scene.add(grp);
       return { grp: grp, mat: mat, outMat: outMat, col: new T.Color(app.color), ry: i * 1.3 };
     });
+    WHITE = new T.Color(0xeceae4); tint = new T.Color(APPS[cur].color);
+    if (fb) { fb.hidden = true; fb = null; }
+    layout();
   }
-  var WHITE = gl ? new T.Color(0xeceae4) : null;
 
+  /* ---------- secours sans WebGL : le cube dessiné en 2D, immobile, avec la même face et le même pixel ---------- */
+  var fb = null;
+  function fallback2D() {
+    if (gl || fb) return;
+    fb = lab.querySelector(".gl2d"); if (!fb) return;
+    fb.hidden = false; draw2D();
+  }
+  function draw2D() {
+    if (!fb) return;
+    var w = innerWidth, h = innerHeight, pix = w < 760 ? 2 : 3;
+    fb.width = Math.ceil(w / pix); fb.height = Math.ceil(h / pix);
+    var x = fb.getContext("2d"), app = APPS[cur], t = faceCanvas(app); x.imageSmoothingEnabled = false;
+    var r = stage.getBoundingClientRect(), s = Math.round(Math.min(r.width, r.height) * .4 / pix), d = Math.round(s * .42);
+    var X = Math.round((r.left + r.width / 2) / pix - (s + d) / 2), Y = Math.round((r.top + r.height / 2) / pix - (s - d) / 2);
+    function poly(pts, fill) { x.beginPath(); x.moveTo(pts[0][0], pts[0][1]); for (var i = 1; i < pts.length; i++) x.lineTo(pts[i][0], pts[i][1]); x.closePath(); x.fillStyle = fill; x.fill(); }
+    function face(clip, m, veil) {
+      x.save(); x.beginPath(); x.moveTo(clip[0][0], clip[0][1]); for (var i = 1; i < clip.length; i++) x.lineTo(clip[i][0], clip[i][1]); x.closePath(); x.clip();
+      x.setTransform(m[0], m[1], m[2], m[3], m[4], m[5]); x.drawImage(t, 0, 0); x.setTransform(1, 0, 0, 1, 0, 0);
+      x.fillStyle = veil; x.fillRect(0, 0, fb.width, fb.height); x.restore();
+    }
+    poly([[X + 4, Y + 4], [X + d + 4, Y - d + 4], [X + s + d + 4, Y - d + 4], [X + s + d + 4, Y + s - d + 4], [X + s + 4, Y + s + 4], [X + 4, Y + s + 4]], "#000");
+    poly([[X - 2, Y], [X + d - 1, Y - d - 2], [X + s + d + 2, Y - d - 2], [X + s + d + 2, Y + s - d + 1], [X + s + 1, Y + s + 2], [X - 2, Y + s + 2]], "#000");
+    face([[X, Y], [X + d, Y - d], [X + s + d, Y - d], [X + s, Y]], [s / 64, 0, -d / 64, d / 64, X + d, Y - d], "rgba(255,255,255,.08)");
+    face([[X + s, Y], [X + s + d, Y - d], [X + s + d, Y + s - d], [X + s, Y + s]], [d / 64, -d / 64, 0, s / 64, X + s, Y], "rgba(0,0,0,.45)");
+    x.drawImage(t, X, Y, s, s);
+    x.fillStyle = app.color; x.fillRect(X, Y, s, 1);
+  }
+
+  /* le projet commence sous l'intro et les rayons, quelle que soit la hauteur de l'intro (retours à la ligne, polices) */
+  var lede = lab.querySelector(".lede"), slotEl = $("slot");
+  function placeSlot() {
+    if (!lede || !slotEl) return;
+    var b = lede.getBoundingClientRect().bottom;
+    slotEl.style.paddingTop = Math.round(b + (innerWidth < 760 ? 14 : 18)) + "px";
+  }
   function layout() {
+    placeSlot();
+    if (fb) draw2D();
     if (!gl) return;
     var w = innerWidth, h = innerHeight, pix = w < 760 ? 2 : 3;
     renderer.setPixelRatio(1); renderer.setSize(Math.ceil(w / pix), Math.ceil(h / pix), false);
@@ -163,6 +215,7 @@ function start(noThree) {
     $("gNext").textContent = cur < N - 1 ? APPS[cur + 1].name : "—";
     links.forEach(function (b, i) { b.setAttribute("aria-current", i === cur ? "true" : "false"); });
     cats.forEach(function (b) { b.setAttribute("aria-current", b.dataset.cat === a.section ? "true" : "false"); });
+    if (fb) draw2D();
     var slot = $("slot"); slot.classList.remove("enter"); void slot.offsetWidth; slot.classList.add("enter");
     $("live").textContent = a.name + (a.shelf ? ", " + a.shelf : "") + ", " + (cur + 1) + " sur " + N;
   }
@@ -223,7 +276,7 @@ function start(noThree) {
     if (notch > lastNotch) buzz(notch >= 10 ? 45 : 12 + notch * 2);
     lastNotch = notch;
   }
-  var trans = null, hot = false, hoverAmt = 0, shake = 0, tint = gl ? new T.Color(APPS[0].color) : null;
+  var trans = null, hot = false, hoverAmt = 0, shake = 0;
   var RESIST = reduce ? 180 : 380; /* px de molette pour libérer un objet */
   var DUR = reduce ? .32 : .8;
 
@@ -245,6 +298,7 @@ function start(noThree) {
   }
 
   addEventListener("wheel", function (e) {
+    if (about.open) return; /* le panneau « à propos » défile normalement */
     e.preventDefault();
     var dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? innerHeight : 1);
     lastInput = performance.now();
@@ -254,7 +308,7 @@ function start(noThree) {
   }, { passive: false });
 
   var ty0 = null;
-  addEventListener("touchstart", function (e) { if (e.touches.length !== 1) return; ty0 = e.touches[0].clientY; dragging = true; }, { passive: true });
+  addEventListener("touchstart", function (e) { if (e.touches.length !== 1 || about.open) return; ty0 = e.touches[0].clientY; dragging = true; }, { passive: true });
   addEventListener("touchmove", function (e) {
     if (ty0 == null) return; e.preventDefault(); if (busy) return;
     var raw = (ty0 - e.touches[0].clientY) / (innerHeight * (reduce ? .12 : .2));
@@ -276,7 +330,7 @@ function start(noThree) {
     charge = dir;
   }
   addEventListener("keydown", function (e) {
-    if (e.altKey || e.metaKey || e.ctrlKey) return;
+    if (e.altKey || e.metaKey || e.ctrlKey || paused()) return;
     var k = e.key;
     if (k === "ArrowDown" || k === "PageDown" || k === "j") { e.preventDefault(); startCharge(1); }
     else if (k === "ArrowUp" || k === "PageUp" || k === "k") { e.preventDefault(); startCharge(-1); }
@@ -295,6 +349,39 @@ function start(noThree) {
   stage.addEventListener("click", function (e) { if (lastPointer !== "mouse" && !hot) { e.preventDefault(); setHot(true); } });
   $("hud").addEventListener("click", function (e) { if (!stage.contains(e.target) && lastPointer !== "mouse") setHot(false); });
   if (coarse) $("hintMain").textContent = "Tire vers le haut, relâche au-delà du trait";
+
+  /* ---------- navigation : marque, à propos, contact, liens ---------- */
+  /* la marque et « laboratoire » ramènent au premier projet sans recharger la page (clic du milieu ou Ctrl : comportement normal) */
+  ["brand", "labLink"].forEach(function (id) {
+    var el = $(id); if (!el) return;
+    el.addEventListener("click", function (e) { if (e.button || e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); go(0); });
+  });
+  var about = $("about"), drops = Array.prototype.slice.call(lab.querySelectorAll(".drop"));
+  function setMenu(d, open) { d.querySelector("button").setAttribute("aria-expanded", String(open)); d.querySelector(".menu").hidden = !open; }
+  function closeMenus(except) { drops.forEach(function (d) { if (d !== except) setMenu(d, false); }); }
+  drops.forEach(function (d) {
+    var b = d.querySelector("button"), m = d.querySelector(".menu");
+    b.addEventListener("click", function (e) {
+      e.stopPropagation(); var open = m.hidden; closeMenus(d); setMenu(d, open);
+      if (open && e.detail === 0) { var f = m.querySelector("a"); if (f) f.focus(); } /* ouvert au clavier : focus sur la première entrée */
+    });
+    d.addEventListener("keydown", function (e) { if (e.key === "Escape" && !m.hidden) { e.stopPropagation(); setMenu(d, false); b.focus(); } });
+    d.addEventListener("focusout", function (e) { if (!d.contains(e.relatedTarget)) setMenu(d, false); });
+  });
+  document.addEventListener("click", function (e) { if (!(e.target.closest && e.target.closest(".drop"))) closeMenus(); });
+  /* contact : le lien mailto s'ouvre et l'adresse est copiée en même temps, avec un « copié » bref (comme sur eulst.fr) */
+  Array.prototype.slice.call(lab.querySelectorAll("[data-copy]")).forEach(function (a) {
+    a.addEventListener("click", function () {
+      if (!navigator.clipboard) return;
+      navigator.clipboard.writeText(a.dataset.copy).then(function () {
+        a.classList.add("is-copied"); clearTimeout(a._t); a._t = setTimeout(function () { a.classList.remove("is-copied"); }, 1400);
+      }, function () {});
+    });
+  });
+  $("aboutBtn").addEventListener("click", function () { closeMenus(); setHot(false); about.showModal(); });
+  $("aboutClose").addEventListener("click", function () { about.close(); });
+  about.addEventListener("click", function (e) { if (e.target === about) about.close(); }); /* clic sur le voile, hors du cadre */
+  function paused() { return about.open || drops.some(function (d) { return !d.querySelector(".menu").hidden; }); }
 
   /* ---------- boucle ---------- */
   var easeIn = function (x) { return x * x * x; };
@@ -354,5 +441,9 @@ function start(noThree) {
   layout();
   requestAnimationFrame(function (t) { last = t; layout(); scramble($("title"), APPS[0].name); requestAnimationFrame(loop); });
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(layout);
+  /* cubes : WebGL dès que three.js est là ; cube 2D si three.js ou WebGL manque, ou si three.js tarde (remplacé par la 3D s'il arrive ensuite) */
+  if (three === "ok") initGL();
+  else if (three === "err") fallback2D();
+  else { onThree = function () { if (three === "ok") initGL(); else fallback2D(); }; setTimeout(function () { if (!gl) fallback2D(); }, 3000); }
 }
 })();
