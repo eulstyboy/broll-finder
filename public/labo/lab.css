@@ -11,31 +11,65 @@ html:has(.eulst-lab),html:has(.eulst-lab) body{height:100%;overflow:hidden;overs
   color-scheme:dark;position:fixed;inset:0;background:var(--ink);color:var(--bone);font-family:var(--font-body);-webkit-font-smoothing:antialiased
 }
 .eulst-lab *{box-sizing:border-box}
-.eulst-lab #gl{position:fixed;inset:0;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;display:block}
+.eulst-lab #gl,.eulst-lab .gl2d{position:fixed;inset:0;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;display:block}
 .eulst-lab .crt{position:fixed;inset:0;pointer-events:none;
   background:repeating-linear-gradient(to bottom,transparent 0 2px,rgba(0,0,0,.16) 2px 3px),radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.55) 100%)}
 .eulst-lab .hud{position:fixed;inset:0;touch-action:none}
 
-.eulst-lab .top{position:absolute;left:20px;right:20px;top:calc(env(safe-area-inset-top,0px) + 18px);display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px 16px;z-index:3}
-.eulst-lab .count{justify-self:end}
-.eulst-lab .cats{display:flex;justify-content:center;flex-wrap:wrap;gap:6px}
+/* navigation calquée sur eulst.fr : marque | laboratoire, portfolio | à propos, contact, liens */
+.eulst-lab .top{position:absolute;left:20px;right:20px;top:calc(env(safe-area-inset-top,0px) + 18px);display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px 16px;z-index:4}
+.eulst-lab .brand{justify-self:start;display:inline-flex;align-items:center;gap:12px;color:var(--bone);text-decoration:none}
+.eulst-lab .brand:focus-visible{outline:2px solid var(--bone);outline-offset:4px}
+.eulst-lab .name{font-family:var(--font-display);font-weight:700;font-size:1.25rem;letter-spacing:.02em;line-height:1;text-shadow:2px 2px 0 #000}
+.eulst-lab .nav{display:flex;gap:26px;align-items:center}
+.eulst-lab .nav-link{position:relative;font-family:var(--font-label);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);text-decoration:none;padding:6px 0}
+.eulst-lab .nav-link:hover{color:var(--bone)}
+.eulst-lab .nav-link[aria-current="page"]{color:var(--bone)}
+.eulst-lab .nav-link[aria-current="page"]::before{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--brand)}
+.eulst-lab .nav-link:focus-visible{outline:2px solid var(--bone);outline-offset:3px}
+.eulst-lab .tools{justify-self:end;display:flex;gap:8px}
+.eulst-lab .drop{position:relative}
+.eulst-lab .tool{all:unset;position:relative;cursor:pointer;display:grid;place-items:center;width:34px;height:34px;color:var(--dim);background:var(--ink-2);border:2px solid var(--line);box-shadow:3px 3px 0 #000;box-sizing:border-box}
+.eulst-lab .tool svg{width:18px;height:18px;fill:currentColor;display:block}
+.eulst-lab .tool:hover,.eulst-lab .tool[aria-expanded="true"]{color:var(--bone);border-color:var(--dim)}
+.eulst-lab .tool:active{transform:translate(2px,2px);box-shadow:1px 1px 0 #000}
+.eulst-lab .tool:focus-visible{outline:2px solid var(--bone);outline-offset:2px}
+/* nom de l'icône sous le bouton au survol ou au focus (comme les libellés d'eulst.fr) */
+.eulst-lab .tool-label{position:absolute;right:-2px;top:calc(100% + 8px);font-family:var(--font-label);font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;white-space:nowrap;color:var(--bone);background:var(--ink);border:1px solid var(--line);padding:3px 6px;opacity:0;pointer-events:none;transition:opacity .12s steps(2)}
+.eulst-lab .tool:hover .tool-label,.eulst-lab .tool:focus-visible .tool-label{opacity:1}
+.eulst-lab .tool[aria-expanded="true"] .tool-label{opacity:0}
+.eulst-lab .menu{position:absolute;right:0;top:calc(100% + 10px);min-width:180px;display:flex;flex-direction:column;padding:6px;background:var(--ink-2);border:2px solid var(--line);box-shadow:5px 5px 0 #000;z-index:5}
+.eulst-lab .menu[hidden]{display:none}
+.eulst-lab .menu-item{display:flex;justify-content:space-between;gap:14px;font-family:var(--font-label);font-size:.66rem;letter-spacing:.08em;color:var(--bone);text-decoration:none;padding:9px 8px;white-space:nowrap}
+.eulst-lab .menu-item:hover,.eulst-lab .menu-item:focus-visible{background:var(--item);color:var(--ink);outline:none}
+.eulst-lab .menu-item .copied{text-transform:uppercase;opacity:0}
+.eulst-lab .menu-item.is-copied .copied{opacity:1}
+
+/* intro et rayons, sous la navigation */
+.eulst-lab .lede{position:absolute;left:20px;right:20px;top:calc(env(safe-area-inset-top,0px) + 72px);display:flex;flex-direction:column;align-items:center;gap:14px;z-index:3;pointer-events:none}
+.eulst-lab .intro{margin:0;max-width:62ch;text-align:center;font-size:.92rem;line-height:1.45;color:var(--dim);text-wrap:balance}
+.eulst-lab .cats{display:flex;justify-content:center;flex-wrap:wrap;gap:6px;pointer-events:auto}
 .eulst-lab .cats button{all:unset;cursor:pointer;display:inline-flex;align-items:baseline;gap:.5em;font-family:var(--font-label);font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);padding:5px 9px;border:2px solid var(--line);background:var(--ink-2);box-shadow:3px 3px 0 #000}
 .eulst-lab .cats button:hover{color:var(--bone);border-color:var(--dim)}
 .eulst-lab .cats button:active{transform:translate(2px,2px);box-shadow:1px 1px 0 #000}
 .eulst-lab .cats button[aria-current="true"]{color:var(--ink);background:var(--item);border-color:var(--item)}
 .eulst-lab .cats button:focus-visible{outline:2px solid var(--bone);outline-offset:2px}
 .eulst-lab .cats .c{opacity:.55;font-variant-numeric:tabular-nums}
-/* logo d'eulst en pixel art : 2 px CSS par case (17 cases = 34 px, 15 cases = 30 px en mobile), ombre dure d'une case ; bleu de marque au survol */
-.eulst-lab .mark{display:block;width:34px;height:34px;align-self:start;color:var(--bone);filter:drop-shadow(2px 2px 0 #000);transition:color .15s steps(2)}
+/* logo d'eulst en pixel art : 2 px CSS par case (17 cases = 34 px, 15 cases = 30 px en mobile), ombre dure d'une case ; bleu de marque au survol.
+   logo.js pose par-dessus le loader en pixels (canvas d'une case de marge autour de la grille) et masque le SVG. */
+.eulst-lab .mark{position:relative;display:block;width:34px;height:34px;color:var(--bone);filter:drop-shadow(2px 2px 0 #000);transition:color .15s steps(2)}
 .eulst-lab .mark svg{display:block;width:100%;height:100%;fill:currentColor}
 .eulst-lab .mark .g15{display:none}
-.eulst-lab .mark:hover{color:var(--brand)}
-.eulst-lab .mark:focus-visible{outline:2px solid var(--bone);outline-offset:4px}
-.eulst-lab .count{font-family:var(--font-label);font-size:.72rem;letter-spacing:.12em;color:var(--dim);text-transform:uppercase;font-variant-numeric:tabular-nums}
+.eulst-lab .mark.is-anim svg{visibility:hidden}
+.eulst-lab .mark .anim{display:none;position:absolute;left:-2px;top:-2px;image-rendering:pixelated;image-rendering:crisp-edges}
+.eulst-lab .mark.is-anim .anim{display:block}
+.eulst-lab .gl2d[hidden]{display:none}
+.eulst-lab .brand:hover .mark{color:var(--brand)}
+.eulst-lab .count{font-variant-numeric:tabular-nums}
 .eulst-lab .count b{color:var(--bone);font-weight:400}
 
 .eulst-lab .slot{position:absolute;inset:0;display:grid;grid-template-rows:auto auto minmax(180px,1fr) auto auto;justify-items:center;row-gap:10px;
-  padding-block:calc(env(safe-area-inset-top,0px) + 76px) calc(env(safe-area-inset-bottom,0px) + 64px);padding-inline:min(16vw,170px);pointer-events:none}
+  padding-block:calc(env(safe-area-inset-top,0px) + 168px) calc(env(safe-area-inset-bottom,0px) + 64px);padding-inline:min(16vw,170px);pointer-events:none}
 .eulst-lab .eyebrow{margin:0;font-family:var(--font-label);font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);display:flex;gap:.8em;align-items:center}
 .eulst-lab .eyebrow .no{color:var(--item)}
 .eulst-lab h1{margin:0;font-family:var(--font-display);font-weight:700;font-size:clamp(2.1rem,6.4vw,4.6rem);line-height:.95;text-align:center;text-wrap:balance;letter-spacing:.01em;
@@ -87,11 +121,37 @@ html:has(.eulst-lab),html:has(.eulst-lab) body{height:100%;overflow:hidden;overs
 .eulst-lab .legal:hover{color:var(--bone)}
 .eulst-lab .legal:focus-visible{outline:2px solid var(--bone);outline-offset:3px}
 .eulst-lab .hint kbd{font-family:inherit;color:var(--bone);border:1px solid var(--line);padding:1px 4px;box-shadow:2px 2px 0 #000}
+.eulst-lab .about{margin:auto;padding:0;border:0;background:transparent;color:var(--bone);max-width:min(600px,calc(100vw - 32px));max-height:calc(100dvh - 48px);overflow:visible}
+.eulst-lab .about::backdrop{background:rgba(5,5,7,.78)}
+.eulst-lab .about-box{position:relative;max-height:calc(100dvh - 48px);overflow:auto;padding:30px 32px 26px;background:var(--ink-2);border:2px solid var(--line);box-shadow:8px 8px 0 #000;font-family:var(--font-body)}
+.eulst-lab .about-kicker{margin:0;font-family:var(--font-label);font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;color:var(--brand)}
+.eulst-lab .about h2{margin:8px 0 18px;font-family:var(--font-display);font-weight:700;font-size:2.2rem;line-height:1;text-shadow:.06em .07em 0 var(--brand),.06em .07em 0 #000}
+.eulst-lab .about p{margin:0 0 14px;font-size:1rem;line-height:1.6;color:var(--bone);text-wrap:pretty}
+.eulst-lab .about .about-links{display:flex;flex-wrap:wrap;gap:8px 20px;margin:22px 0 0;padding-top:16px;border-top:2px solid var(--line)}
+.eulst-lab .about-links a{font-family:var(--font-label);font-size:.7rem;letter-spacing:.08em;color:var(--dim);text-decoration:none}
+.eulst-lab .about-links a:hover{color:var(--bone)}
+.eulst-lab .about a:focus-visible,.eulst-lab .about-close:focus-visible{outline:2px solid var(--bone);outline-offset:3px}
+.eulst-lab .about-close{all:unset;position:absolute;right:10px;top:8px;width:36px;height:36px;display:grid;place-items:center;cursor:pointer;font-family:var(--font-display);font-size:1.6rem;color:var(--dim)}
+.eulst-lab .about-close:hover{color:var(--bone)}
 .eulst-lab .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
 @media (max-width:760px){
-  .eulst-lab .top{grid-template-columns:1fr auto}
-  .eulst-lab .cats{grid-column:1 / -1;grid-row:2}
+  /* une seule ligne : marque, portfolio, icônes (« laboratoire » est la page où l'on est) */
+  .eulst-lab .top{grid-template-columns:auto 1fr auto;gap:8px}
+  .eulst-lab .brand{gap:8px}
+  .eulst-lab .name{font-size:1rem}
+  .eulst-lab .nav{justify-self:end}
+  .eulst-lab .lab-link{display:none}
+  .eulst-lab .nav-link{font-size:.6rem;letter-spacing:.08em}
+  .eulst-lab .tools{gap:6px}
+  .eulst-lab .tool{width:30px;height:30px}
+  .eulst-lab .tool svg{width:18px;height:18px}
+  .eulst-lab .tool-label{display:none}
+  .eulst-lab .lede{top:calc(env(safe-area-inset-top,0px) + 62px);gap:10px}
+  .eulst-lab .intro{font-size:.8rem;line-height:1.4}
+  .eulst-lab .about-box{padding:24px 20px 20px}
+  .eulst-lab .about h2{font-size:1.8rem}
+  .eulst-lab .about p{font-size:.95rem}
   /* quatre rayons sur une seule ligne dès 375 px (une deuxième ligne recouvrirait le titre) */
   .eulst-lab .cats{gap:4px}
   .eulst-lab .cats button{font-size:.6rem;padding:5px 5px;letter-spacing:.06em;gap:.35em}
@@ -99,7 +159,7 @@ html:has(.eulst-lab),html:has(.eulst-lab) body{height:100%;overflow:hidden;overs
   .eulst-lab .mark .g17{display:none}
   .eulst-lab .mark .g15{display:block}
   .eulst-lab .index .sec{font-size:0;padding:0;height:10px}
-  .eulst-lab .slot{padding-inline:40px;row-gap:8px;padding-block-start:calc(env(safe-area-inset-top,0px) + 108px)}
+  .eulst-lab .slot{padding-inline:40px;row-gap:8px;padding-block-start:calc(env(safe-area-inset-top,0px) + 172px)}
   .eulst-lab .index{left:8px;gap:2px}
   .eulst-lab .index .nm{display:none}
   .eulst-lab .index a{padding:4px 2px}
@@ -112,14 +172,27 @@ html:has(.eulst-lab),html:has(.eulst-lab) body{height:100%;overflow:hidden;overs
   .eulst-lab .slot{padding-block-end:calc(env(safe-area-inset-bottom,0px) + 92px)}
   /* cibles tactiles d'au moins 44 × 44 px : zones de clic agrandies, dessin inchangé */
   .eulst-lab .mark{position:relative}
-  .eulst-lab .mark::after{content:"";position:absolute;inset:-14px -7px 0}
+  .eulst-lab .brand{position:relative}
+  .eulst-lab .brand::after{content:"";position:absolute;inset:-7px -4px}
+  .eulst-lab .nav-link::after,.eulst-lab .tool::after{content:"";position:absolute;inset:-7px -4px}
   .eulst-lab .cats button{position:relative}
   .eulst-lab .cats button::after{content:"";position:absolute;inset:-8px -2px}
   .eulst-lab .index{left:1px;gap:0}
   .eulst-lab .index a{padding:13px 9px;min-width:44px}
   .eulst-lab .legal::after{content:"";position:absolute;inset:-15px -10px}
 }
-@media (max-width:359px){.eulst-lab .cats .c{display:none}}
+@media (max-width:359px){
+  .eulst-lab .cats .c{display:none}
+  .eulst-lab .top{left:12px;right:12px;gap:6px}
+  .eulst-lab .brand{gap:6px}
+  .eulst-lab .name{font-size:.85rem}
+  .eulst-lab .nav-link{letter-spacing:.04em}
+  .eulst-lab .tools{gap:4px}
+  .eulst-lab .tool{width:28px;height:28px}
+}
+.eulst-lab .nav-link{white-space:nowrap}
+/* écrans courts : l'intro cède sa place au projet */
+@media (max-width:760px) and (max-height:620px){.eulst-lab .intro{display:none}}
 @media (max-height:560px),(max-width:760px) and (max-height:620px){.eulst-lab .traits{display:none}}
 @media (max-width:760px) and (max-height:620px){.eulst-lab .slot{grid-template-rows:auto auto minmax(150px,1fr) auto auto}.eulst-lab .stage{min-height:150px}}
 @media (prefers-reduced-motion:reduce){
