@@ -329,6 +329,8 @@ details.settings .inner { display: grid; gap: var(--s4); margin-top: var(--s4); 
         <button class="btn sm" type="button" data-filter="all" aria-pressed="false">Tous les textes</button>
         <button class="btn sm ghost" type="button" data-filter="decor" aria-pressed="false">Écartés</button>
       </div>
+      <div style="height:var(--s3)"></div>
+      <div class="row"><button class="btn sm" type="button" id="exportJson" title="Fichier JSON local (rien n'est envoyé) : sous-titres lus, propositions, décisions, temps et jetons. Sert au protocole de test.">Exporter les résultats (JSON)</button></div>
     </div>
 
     <div class="panel" id="aiPanel" hidden>
@@ -827,6 +829,8 @@ async function runAnalysis() {
   if (S.running) return;
   S.running = true; S.stop = false; S.example = false;
   const t0 = performance.now();
+  S.aiCalls = []; S.timings = {}; S.analysedAt = new Date().toISOString();
+  let tPhase = t0; const lap = (k) => { const n = performance.now(); S.timings[k] = Math.round(n - tPhase); tPhase = n; };
   $("#runBtn").disabled = true; $("#stopBtn").hidden = false; $("#progressPanel").hidden = false;
   $("#summaryPanel").hidden = true; $("#mailPanel").hidden = true; $("#cards").innerHTML = "";
   ["ph-scan", "ph-ocr", "ph-tc", "ph-gc", "ph-ai"].forEach((p) => setPhase(p, 0, 0, "—"));
@@ -838,6 +842,7 @@ async function runAnalysis() {
     GC.start().catch(() => {});
     await OCR.start(); await OCR.reset();
     scanner = new Scanner(); await scanner.ready();
+    lap("chargement_ms");
     const quick = S.quick = $("#mode").value === "quick";
     const step = quick ? 0.5 : 0.333;
     let samples;
@@ -847,20 +852,25 @@ async function runAnalysis() {
 
     // ---- Construction des textes (pistes) ----
     const tracks = buildTracks(samples, step);
+    lap("reperage_et_ocr_ms");
     // ---- Timecodes à l'image ----
     if ($("#refine").checked && !S.stop) await refineTracks(scanner, tracks, samples);
     else setPhase("ph-tc", 1, 1, "désactivé");
+    lap("timecodes_ms");
     scanner.dispose(); scanner = null;
     // ---- Relecture ----
     setPhase("ph-gc", 0, 1, "en cours…");
     ticker.textContent = "Relecture orthographe, grammaire et ponctuation…";
     await checkTracks(tracks);
     setPhase("ph-gc", 1, 1, `${tracks.length} textes`);
+    lap("grammalecte_ms");
     if (claudeAvailable() && $("#useClaude").checked && !S.stop && tracks.length) {
       setPhase("ph-ai", 0, 1, "en cours…"); ticker.textContent = "Relecture par Claude…";
       const ok = await claudeReview(tracks);
       setPhase("ph-ai", ok ? 1 : 0, 1, ok ? "terminée" : "non faite");
     } else setPhase("ph-ai", 1, 1, "désactivée");
+    lap("claude_ms");
+    S.timings.total_ms = Math.round(performance.now() - t0);
     S.tracks = tracks;
     $("#stTime").textContent = fmtDur(performance.now() - t0);
     ticker.textContent = S.stop ? "Analyse arrêtée : résultats partiels." : "Analyse terminée.";
@@ -1611,6 +1621,79 @@ function showInPlayer(t) {
 }
 
 /* ============================================================
+   Export JSON des résultats (format « coquille-sortie/1 », aligné sur le protocole de test V0)
+   Temps en millisecondes depuis le début de la vidéo, comme la vérité terrain « coquille-verite/1 ».
+   ============================================================ */
+const SRC_OF = (i) => i.src === "claude" ? "claude" : i.kind === "spell" ? "dictionnaire" : i.rule === "coquille-du" ? "regle_maison" : "grammalecte";
+function exportResults() {
+  const ms = (sec) => Math.round(sec * 1000);
+  const tracks = S.tracks.filter((t) => !t.example);
+  const nOf = new Map(); let n = 0;
+  tracks.forEach((t) => nOf.set(t.id, ++n));
+  const ua = navigator.userAgent;
+  const out = {
+    format: "coquille-sortie/1",
+    passage: {
+      date: S.analysedAt || new Date().toISOString(),
+      navigateur: ua,
+      isolation_cross_origin: !!self.crossOriginIsolated,
+      fils_ocr: OCR.threads,
+      coeurs: navigator.hardwareConcurrency || null,
+      mode: S.quick ? "rapide" : "approfondi",
+      timecodes_affines: $("#refine").checked,
+      relecture_claude: $("#useClaude").checked && claudeAvailable(),
+      zone: S.roi
+    },
+    video: {
+      fichier: S.file ? S.file.name : null,
+      fps: S.fps,
+      duree_ms: ms(S.dur || 0),
+      resolution: S.vw && S.vh ? `${S.vw}x${S.vh}` : null
+    },
+    temps_ms: S.timings,
+    claude: S.aiCalls,
+    sous_titres: tracks.map((t) => ({
+      n: nOf.get(t.id),
+      id: t.id,
+      debut_ms: ms(t.tIn),
+      fin_ms: ms(t.tOut),
+      timecode_debut: fmtTC(t.tIn, S.fps),
+      timecode_exact: !!t.tcExact,
+      lignes: (t.ocrText || t.text).split("\n"),
+      lignes_relues: t.text.split("\n"),
+      corrige_a_la_main: !!t.edited,
+      confiance_ocr: Math.round((t.conf || 0) * 10) / 10,
+      lectures_concurrentes: (t.altReads || []).map((a) => ({ lignes: a.text.split("\n"), confiance_ocr: Math.round(a.conf * 10) / 10, vues: a.freq })),
+      ecarte: !!t.decor,
+      ecarte_motif: t.decor ? (t.decorWhy || "décor") : null
+    })),
+    propositions: tracks.flatMap((t) => t.issues.map((i) => ({
+      sous_titre: nOf.get(t.id),
+      source: SRC_OF(i),
+      avant: i.word || "",
+      apres: (i.sugg && i.sugg.length ? i.sugg[0] : null),
+      alternatives: (i.sugg || []).slice(1, 5),
+      position: i.whole ? null : [i.s, i.e],
+      type: i.src === "claude" ? (i.rule || "").replace(/^claude-/, "") : i.rule,
+      categorie_coquille: i.cat,
+      confiance: i.src === "claude" ? (i.cert || null) : null,
+      lecture_incertaine: !!i.unsure,
+      explication: i.msg || "",
+      statut: i.status,
+      remplacement_retenu: i.status === "accepted" ? i.repl : null,
+      sur_texte_ecarte: !!t.decor
+    })))
+  };
+  const base = (S.file ? S.file.name.replace(/\.[^.]+$/, "") : "video").replace(/[^\w.-]+/g, "_");
+  const blob = new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+  a.download = `${base}_coquille_${(S.analysedAt || new Date().toISOString()).slice(0, 19).replace(/[:T]/g, "-")}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  return out;
+}
+
+/* ============================================================
    Mail
    ============================================================ */
 function corrections() {
@@ -1771,6 +1854,7 @@ $("#copyTable").addEventListener("click", () => {
   const intro = `<p>Bonjour,</p><p>Voici les corrections à reporter :</p>`, outro = `<p>Merci,<br>${esc($("#mailSign").value)}</p>`;
   copyText($("#mailBody").value, intro + tableHTML() + outro);
 });
+$("#exportJson").addEventListener("click", () => { if (!S.tracks.length) { toast("Lance d'abord une analyse."); return; } exportResults(); toast("Résultats exportés (fichier JSON local)."); });
 $("#dictAddBtn").addEventListener("click", () => { addDict($("#dictAdd").value); $("#dictAdd").value = ""; });
 $("#dictAdd").addEventListener("keydown", (e) => { if (e.key === "Enter") { addDict(e.target.value); e.target.value = ""; } });
 renderRules(); renderDict();
