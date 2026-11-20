@@ -27,12 +27,14 @@ const nextConfig: NextConfig = {
         headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }],
       },
       // Coquille : isolation cross-origin pour que la lecture PaddleOCR utilise plusieurs cœurs (SharedArrayBuffer).
-      // « credentialless » laisse passer Google Fonts ; Safari l'ignore et tourne alors sur un seul cœur.
+      // « require-corp » est pris en charge par Safari (contrairement à « credentialless ») : toutes les ressources
+      // de /coquille/ doivent donc être de même origine (polices hébergées dans public/coquille/fonts/).
       {
         source: "/coquille/:path*",
         headers: [
           { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
-          { key: "Cross-Origin-Embedder-Policy", value: "credentialless" },
+          { key: "Cross-Origin-Embedder-Policy", value: "require-corp" },
+          { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
         ],
       },
       // Jeux installables : le service worker doit toujours être relu pour livrer les mises à jour.
