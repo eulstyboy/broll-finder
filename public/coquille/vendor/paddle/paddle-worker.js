@@ -9,6 +9,18 @@ const DET_MAX = 512;          // côté max de l'image envoyée à la détection
 const DB_THRESH = 0.2, BOX_THRESH = 0.45, UNCLIP = 1.4;
 let cache = [];               // lignes lues sur l'image précédente (réutilisées si identiques)
 
+/* Alphabet autorisé au décodage : le dictionnaire du modèle contient ~18 700 caractères (chinois, japonais…).
+   On ne garde que le latin utile au français ; les autres classes sont masquées, ce qui évite qu'un « é »
+   mal dessiné devienne un idéogramme. Liste volontairement explicite (modifiable ici). */
+const ALLOWED = new Set([
+  ..." !\"#$%&'()*+,-./0123456789:;=?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]abcdefghijklmnopqrstuvwxyz",
+  // lettres accentuées (français, plus les accents latins courants des noms propres : á, ñ, ø, ß…)
+  ..."ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÑÒÓÔÕÖØÙÚÛÜÝàáâãäåæçèéêëìíîïñòóôõöøùúûüýÿßŒœŸ",
+  // ponctuation française et symboles courants
+  ..."«»’‘“”…–—·€£°§©®²³"
+]);
+let allowIdx = null;          // indices des classes autorisées (0 = blanc CTC toujours inclus)
+
 async function init(threads) {
   ort.env.wasm.wasmPaths = new URL("../ort/", BASE).href;
   ort.env.wasm.numThreads = threads || 1;
@@ -22,6 +34,9 @@ async function init(threads) {
   const lines = dict.split("\n").map((l) => l.replace(/\r$/, ""));
   if (lines[lines.length - 1] === "") lines.pop();
   chars = ["", ...lines, " "]; // 0 = blank (CTC), puis le dictionnaire, puis l'espace
+  const idx = [0];
+  for (let c = 1; c < chars.length; c++) if (ALLOWED.has(chars[c])) idx.push(c);
+  allowIdx = Int32Array.from(idx);
 }
 
 /* ---------- Détection (DBNet) ---------- */
@@ -104,7 +119,8 @@ async function recognize(rgba, w, b) {
   let text = "", confs = [], prev = -1;
   for (let k = 0; k < T; k++) {
     let best = 0, bv = -1; const off = k * C;
-    for (let c = 0; c < C; c++) { const v = p[off + c]; if (v > bv) { bv = v; best = c; } }
+    // argmax limité à l'alphabet autorisé (les autres classes sont ignorées)
+    for (let j = 0; j < allowIdx.length; j++) { const c = allowIdx[j]; if (c >= C) break; const v = p[off + c]; if (v > bv) { bv = v; best = c; } }
     if (best !== 0 && best !== prev) { text += chars[best] || ""; confs.push(bv); }
     prev = best;
   }
