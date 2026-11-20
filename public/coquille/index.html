@@ -183,6 +183,7 @@ details.settings .inner { display: grid; gap: var(--s4); margin-top: var(--s4); 
 .cat[data-cat="style"] { background: var(--c-style); }
 :root[data-theme="dark"] .cat, .cat { color: var(--bg); }
 .word { font-family: var(--f-mono); font-size: 13.5px; background: var(--surface); border: 1px solid var(--line); padding: 1px 6px; border-radius: 4px; }
+.altreads { display: grid; gap: 6px; margin: 6px 0 2px; }
 .uncertain { font-size: 11.5px; color: var(--c-typo); border: 1px solid currentColor; border-radius: 4px; padding: 1px 6px; }
 .why { margin: 0; font-size: 14.5px; }
 .why a { color: var(--muted); font-size: 13px; }
@@ -1152,7 +1153,9 @@ function buildTracks(samples, step) {
   }
   const tracks = [];
   for (const tr of done) {
-    // versions candidates : les plus complètes ; la meilleure sera choisie à la relecture (moins de mots inconnus)
+    // versions candidates : les plus complètes. On garde la lecture OCR la plus confiante (jamais « celle qui a
+    // le moins de fautes » : elle pourrait masquer une vraie faute). Les autres lectures concurrentes sont gardées
+    // pour signaler une « lecture incertaine » au journaliste.
     const maxLen = Math.max(...tr.obs.map((o) => normKey(o.text).length));
     const byText = new Map();
     for (const o of tr.obs) {
@@ -1160,19 +1163,35 @@ function buildTracks(samples, step) {
       const c = byText.get(o.text); if (c) { c.freq++; if (o.conf > c.conf) Object.assign(c, { conf: o.conf, thumb: o.thumb, spans: o.spans }); }
       else byText.set(o.text, { text: o.text, spans: o.spans, conf: o.conf, thumb: o.thumb, freq: 1 });
     }
-    const cands = [...byText.values()].sort((a, b) => (b.freq - a.freq) || (b.conf - a.conf)).slice(0, 6);
+    const cands = [...byText.values()].sort((a, b) => (b.conf - a.conf) || (b.freq - a.freq)).slice(0, 6);
     const ref = cands[0];
+    const altReads = divergentReads(ref, cands);
     if (tr.obs.length === 1 && ref.conf < 40) continue; // lecture isolée et douteuse : bruit
     const tIn = samples[tr.firstSi].t, tOut = tr.lastSi + 1 < samples.length ? samples[tr.lastSi + 1].t : S.dur;
     tracks.push({
       id: "t" + Math.random().toString(36).slice(2, 9), firstSi: tr.firstSi, lastSi: tr.lastSi, tIn, tOut, box: tr.box, cands,
       obsBoxes: tr.obs.map((o) => o.box), nObs: tr.obs.length,
-      text: ref.text, ocrText: ref.text, spans: ref.spans, conf: ref.conf, thumb: ref.thumb, issues: [], edited: false
+      text: ref.text, ocrText: ref.text, spans: ref.spans, conf: ref.conf, thumb: ref.thumb, issues: [], edited: false, altReads
     });
   }
   tracks.sort((a, b) => a.tIn - b.tIn);
   if (S.quick) mergeFragments(tracks, samples);
   return tracks;
+}
+/* Lectures concurrentes d'un même texte : même longueur à 10 % près (pas un texte qui s'écrit), mots différents,
+   et assez confiantes pour être plausibles. Elles ne sont jamais choisies automatiquement : on les montre. */
+function divergentReads(ref, cands) {
+  const flat = (x) => x.replace(/\s+/g, " ").trim();
+  const R = flat(ref.text), out = [];
+  for (const c of cands) {
+    if (c === ref) continue;
+    const C = flat(c.text);
+    if (C === R || c.conf < 50) continue;
+    if (Math.abs(normKey(C).length - normKey(R).length) > 0.1 * Math.max(1, normKey(R).length)) continue;
+    if (out.some((o) => flat(o.text) === C)) continue;
+    out.push({ text: c.text, conf: c.conf, freq: c.freq });
+  }
+  return out.slice(0, 3);
 }
 /* Mode rapide : un paragraphe qui s'écrit ou s'efface laisse des lectures partielles brèves.
    Une lecture courte entièrement contenue dans un texte voisin est rattachée à ce texte. */
@@ -1281,26 +1300,13 @@ async function gcTexts(texts) {
 }
 async function checkTracks(tracks) {
   if (!tracks.length) return;
-  // relit toutes les versions candidates et garde, pour chaque texte, la mieux lue
-  const all = [], idx = [];
+  // relit la lecture retenue (la plus confiante, choisie dans buildTracks) : le correcteur ne choisit plus la lecture
+  const res = await gcTexts(tracks.map((t) => t.text));
   tracks.forEach((t, ti) => {
-    const cands = (!t.edited && t.cands && t.cands.length) ? t.cands : [{ text: t.text, spans: t.spans, conf: t.conf, thumb: t.thumb, freq: 1 }];
-    cands.forEach((c) => { all.push(c.text); idx.push([ti, c]); });
-  });
-  const res = await gcTexts(all);
-  const best = new Map();
-  res.forEach((r, k) => {
-    const [ti, c] = idx[k];
-    const words = Math.max(1, c.text.split(/\s+/).length);
-    const score = (r.spell.length * 2 + r.gramm.length) / words - c.freq * 0.02 - c.conf * 0.001;
-    const b = best.get(ti); if (!b || score < b.score) best.set(ti, { score, c, r });
-  });
-  tracks.forEach((t, ti) => {
-    const b = best.get(ti); if (!b) return;
-    if (!t.edited) Object.assign(t, { text: b.c.text, ocrText: b.c.text, spans: b.c.spans, conf: b.c.conf, thumb: b.c.thumb || t.thumb });
-    applyCheck(t, b.r);
+    const r = res[ti]; if (!r) return;
+    applyCheck(t, r);
     if (!t.edited && t.decor == null) {
-      const unknown = b.r.spell.filter((e) => !S.dict.has(e.sValue.toLowerCase())).length;
+      const unknown = r.spell.filter((e) => !S.dict.has(e.sValue.toLowerCase())).length;
       const why = decorReason(t, unknown);
       if (why) { t.decor = true; t.decorWhy = why; }
     }
@@ -1409,7 +1415,8 @@ function applyCheck(t, r) {
   t.issues = list.map((x) => {
     const key = `${x.rule}|${x.s}|${x.word}`;
     const old = prev.get(key);
-    const unsure = x.cert === "lecture" || (!t.edited && (t.spans || []).some((sp) => sp.s < x.e && x.s < sp.e && sp.conf < 72));
+    const unsure = x.cert === "lecture" || (!t.edited && (t.spans || []).some((sp) => sp.s < x.e && x.s < sp.e && sp.conf < 72))
+      || (!t.edited && !!x.word && (t.altReads || []).some((a) => !a.text.includes(x.word))); // une autre lecture ne contient pas ce mot
     return Object.assign(x, { key, unsure, status: old ? old.status : "pending", repl: old ? old.repl : null });
   });
 }
@@ -1486,6 +1493,19 @@ function renderCard(t) {
   const p = document.createElement("p"); p.className = "ptext"; p.innerHTML = markedHTML(t, t.cur);
   p.addEventListener("click", (e) => { const m = e.target.closest("mark"); if (!m) return; t.cur = m.dataset.key; const el = $(`#card-${t.id} .issue[data-key="${CSS.escape(t.cur)}"]`); if (el) el.scrollIntoView({ block: "nearest", behavior: "smooth" }); });
   body.appendChild(p);
+  // lectures OCR concurrentes : on ne choisit pas à la place du journaliste, on les montre
+  if (!t.edited && !t.example && (t.altReads || []).length) {
+    const ar = document.createElement("div"); ar.className = "altreads";
+    ar.innerHTML = `<p class="why"><span class="uncertain">Lecture incertaine</span> L'OCR a lu ce texte de plusieurs façons. Compare avec la vignette ; la lecture affichée est la plus confiante.</p>`;
+    for (const a of t.altReads) {
+      const row = document.createElement("div"); row.className = "row";
+      row.innerHTML = `<span class="mono" style="font-size:13px">« ${esc(a.text.replace(/\n/g, " / "))} »</span>`;
+      const ub = document.createElement("button"); ub.type = "button"; ub.className = "btn sm ghost"; ub.textContent = "Utiliser cette lecture";
+      ub.addEventListener("click", async () => { ub.disabled = true; await useReading(t, a.text); });
+      row.appendChild(ub); ar.appendChild(row);
+    }
+    body.appendChild(ar);
+  }
   if (!t.decor) for (const i of t.issues) body.appendChild(renderIssue(t, i));
   if (t.decor) {
     const dl = document.createElement("div"); dl.className = "row";
@@ -1509,10 +1529,7 @@ function renderCard(t) {
     cancel.addEventListener("click", () => box.remove());
     ok.addEventListener("click", async () => {
       ok.disabled = true; ok.textContent = "Vérification…";
-      t.text = box.querySelector("textarea").value.replace(/[ \t]+/g, " ").replace(/ *\n+ */g, "\n").trim(); t.edited = true; t.issues = [];
-      const [r] = await gcTexts([t.text]); applyCheck(t, r);
-      if (claudeAvailable() && $("#useClaude").checked) await claudeReview([t]);
-      rerenderCard(t);
+      await useReading(t, box.querySelector("textarea").value);
     });
     body.insertBefore(box, act);
   });
@@ -1521,6 +1538,13 @@ function renderCard(t) {
   body.appendChild(act);
   c.appendChild(body);
   return c;
+}
+/* Remplace la lecture d'un texte (corrigée à la main ou lecture concurrente choisie) puis revérifie. */
+async function useReading(t, text) {
+  t.text = text.replace(/[ \t]+/g, " ").replace(/ *\n+ */g, "\n").trim(); t.edited = true; t.issues = [];
+  const [r] = await gcTexts([t.text]); applyCheck(t, r);
+  if (claudeAvailable() && $("#useClaude").checked) await claudeReview([t]);
+  rerenderCard(t);
 }
 function rerenderCard(t) { const old = $("#card-" + t.id); if (old) old.replaceWith(renderCard(t)); updateStats(); renderMail(); }
 function renderIssue(t, i) {
