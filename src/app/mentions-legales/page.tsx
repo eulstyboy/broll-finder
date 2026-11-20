@@ -103,8 +103,20 @@ export default function MentionsLegales() {
 
           <h3>Coquille</h3>
           <p>
-            Coquille lit les textes d’une vidéo dans le navigateur ; la vidéo n’est pas envoyée. La relecture par Claude,
-            réservée aux personnes qui ont le mot de passe, transmet les textes lus et le nom du fichier à l’API d’Anthropic.
+            Coquille lit les textes d’une vidéo dans le navigateur, avec PaddleOCR et Grammalecte. La vidéo, ses images
+            et le nom du fichier ne sont jamais envoyés.
+          </p>
+          <p>
+            La relecture par Claude est facultative et désactivée par défaut. Réservée aux personnes qui ont le mot de passe,
+            elle n’a lieu que si l’on coche la case prévue. Elle transmet alors uniquement les textes lus et leurs timecodes,
+            via le serveur d’eulst.app (Vercel), à l’API d’Anthropic (Anthropic Ireland, Limited ; traitement aux États-Unis
+            encadré par les clauses contractuelles types de la Commission européenne). Anthropic n’utilise pas ces textes
+            pour entraîner ses modèles et les supprime sous 30 jours, ou jusqu’à 2 ans si sa modération automatique signale
+            un contenu. eulst.app ne conserve pas ces textes : ses journaux n’enregistrent ni les textes ni les noms de fichiers.
+          </p>
+          <p>
+            Les sous-titres d’une vidéo non publiée peuvent contenir des données personnelles ou être soumis à un embargo.
+            Pour une vidéo sous embargo, laissez la relecture par Claude décochée : tout reste alors sur votre ordinateur.
           </p>
 
           <h3>Hébergement et ressources tierces</h3>
