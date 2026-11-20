@@ -277,7 +277,7 @@ details.settings .inner { display: grid; gap: var(--s4); margin-top: var(--s4); 
         <div class="inner">
           <div class="grid2">
           </div>
-          <label class="check" id="claudeOpt"><input type="checkbox" id="useClaude" checked><span>Relecture par Claude en plus de Grammalecte<small>Repère aussi les mots manquants, répétitions et tournures fautives. Seuls les textes lus sont envoyés, jamais la vidéo.</small></span></label>
+          <label class="check" id="claudeOpt"><input type="checkbox" id="useClaude"><span>Envoyer le texte des sous-titres à Claude (pas pour les vidéos sous embargo)<small>Repère aussi les mots manquants, répétitions et tournures fautives. Seuls les textes lus et leurs timecodes partent (chez Anthropic, via eulst.app), jamais la vidéo ni le nom du fichier. Décoché : tout reste sur ton ordinateur.</small></span></label>
           <label class="check"><input type="checkbox" id="refine" checked><span>Timecodes à l'image près<small>Affine l'entrée et la sortie de chaque texte. Décoché : environ 2 fois plus rapide, timecodes à quelques images près.</small></span></label>
           <div>
             <p class="eyebrow" style="margin:0 0 6px">Règles vérifiées</p>
@@ -363,7 +363,7 @@ details.settings .inner { display: grid; gap: var(--s4); margin-top: var(--s4); 
   </section>
 </main>
 
-<p class="foot">Coquille lit les textes avec PaddleOCR (PP-OCRv6, Apache 2.0) dans ton navigateur et les relit avec Grammalecte 2.3.1 (GPL v3), plus Claude si l'option est cochée. La vidéo ne quitte jamais ton ordinateur ; seule la relecture Claude envoie les textes lus.</p>
+<p class="foot">Coquille lit les textes avec PaddleOCR (PP-OCRv6, Apache 2.0) dans ton navigateur et les relit avec Grammalecte 2.3.1 (GPL v3), plus Claude si l'option est cochée. La vidéo ne quitte jamais ton ordinateur ; seule la relecture Claude, décochée par défaut, envoie les textes lus. Polices Bricolage Grotesque et IBM Plex (OFL), hébergées ici.</p>
 
 <script>
 "use strict";
@@ -402,7 +402,8 @@ const S = {
   tracks: [], filter: "pending", running: false, stop: false,
   dict: new Set(store.get("dict", [])),
   ignoredRules: new Set(store.get("ignoredRules", [])),
-  ignoredAi: new Set(store.get("ignoredAi", [])), // suggestions précises de Claude refusées (extrait → remplacement)
+  ignoredAi: new Set(store.get("ignoredAi", [])),
+  aiCalls: [], timings: {}, // pour l'export JSON (protocole de test V0) // suggestions précises de Claude refusées (extrait → remplacement)
   rules: store.get("rules", null),
   example: true
 };
@@ -1355,15 +1356,17 @@ const AI_CAT = { orthographe: "spell", grammaire: "gram", conjugaison: "gram", p
 const AI_CERT = { sur: "Sûr", probable: "Probable", oral: "Oral, à arbitrer", lecture: "Peut-être une erreur de lecture" };
 async function claudeReview(tracks) {
   setChip("chipAi", "loading", "Claude : relecture…");
-  const name = S.file ? S.file.name.replace(/\.[^.]+$/, "") : "";
+  // seuls les textes et leurs timecodes partent (plus le nom du fichier : il peut révéler le sujet)
   const texts = tracks.filter((t) => !t.decor).map((t) => ({ id: t.id, tc: fmtTC(t.tIn, S.fps), text: t.text }));
+  const tAi = performance.now();
   let res;
   try {
-    res = await fetch("/api/coquille", { method: "POST", headers: { "Content-Type": "application/json", ...aiAuthHeader() }, body: JSON.stringify({ video: name, texts }) });
+    res = await fetch("/api/coquille", { method: "POST", headers: { "Content-Type": "application/json", ...aiAuthHeader() }, body: JSON.stringify({ texts }) });
   } catch (e) { return aiFail("Le site ne répond pas. Vérifie ta connexion, puis relance la relecture."); }
   if (res.status === 401) return aiFail("Le site demande son mot de passe pour utiliser Claude.", true);
   let data = null; try { data = await res.json(); } catch (e) { /* réponse vide */ }
   if (!res.ok || !data || !Array.isArray(data.results)) return aiFail((data && data.error) || `Erreur du serveur (${res.status}).`);
+  S.aiCalls.push({ model: data.model || null, usage: data.usage || null, textes: texts.length, ecartees: data.dropped || 0, duree_ms: Math.round(performance.now() - tAi) });
   const byId = new Map(data.results.map((r) => [r.id, r]));
   for (const t of tracks) {
     const r = byId.get(t.id); if (!r) continue;
@@ -1772,8 +1775,8 @@ $("#dictAddBtn").addEventListener("click", () => { addDict($("#dictAdd").value);
 $("#dictAdd").addEventListener("keydown", (e) => { if (e.key === "Enter") { addDict(e.target.value); e.target.value = ""; } });
 renderRules(); renderDict();
 $("#claudeOpt").hidden = !claudeAvailable();
-$("#useClaude").checked = store.get("useClaude", true);
-$("#useClaude").addEventListener("change", (e) => store.set("useClaude", e.target.checked));
+$("#useClaude").checked = store.get("sendToClaude", false); // décoché par défaut (l'ancienne préférence « useClaude » n'est plus lue)
+$("#useClaude").addEventListener("change", (e) => store.set("sendToClaude", e.target.checked));
 if (!claudeAvailable()) setChip("chipAi", "idle", "Claude : disponible sur eulst.app");
 $("#aiUser").value = store.get("aiUser", "");
 $("#aiForm").addEventListener("submit", async (e) => {
