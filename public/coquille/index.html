@@ -402,6 +402,7 @@ const S = {
   tracks: [], filter: "pending", running: false, stop: false,
   dict: new Set(store.get("dict", [])),
   ignoredRules: new Set(store.get("ignoredRules", [])),
+  ignoredAi: new Set(store.get("ignoredAi", [])), // suggestions précises de Claude refusées (extrait → remplacement)
   rules: store.get("rules", null),
   example: true
 };
@@ -1390,14 +1391,21 @@ function locate(text, extrait) {
   const flat = text.replace(/\n/g, " "); i = flat.indexOf(extrait.replace(/\n/g, " ")); if (i >= 0) return i;
   return flat.toLowerCase().indexOf(extrait.replace(/\n/g, " ").toLowerCase());
 }
+/* Identité d'une suggestion de Claude : même extrait et même remplacement (casse et espaces normalisés). */
+function aiSuggKey(extrait, remplacement) {
+  const n = (v) => String(v == null ? "" : v).replace(/\s+/g, " ").trim();
+  return n(extrait) + "\u2192" + n(remplacement);
+}
 function applyCheck(t, r) {
   const prev = new Map(t.issues.map((i) => [i.key, i]));
   const list = [];
   if (t.ai && t.aiText === t.text) {
     for (const x of t.ai) {
+      const aiKey = aiSuggKey(x.extrait, x.remplacement);
+      if (S.ignoredAi.has(aiKey)) continue;
       const s = locate(t.text, x.extrait); const len = x.extrait.length;
       const alts = [x.remplacement, ...(Array.isArray(x.alternatives) ? x.alternatives : [])].filter((v, k, a) => typeof v === "string" && a.indexOf(v) === k && v !== x.extrait);
-      list.push({ kind: "ai", src: "claude", cat: AI_CAT[x.type] || "gram", s: s < 0 ? 0 : s, e: s < 0 ? 0 : s + len, word: x.extrait, msg: x.explication || "", sugg: alts, rule: "claude-" + (x.type || ""), cert: x.certitude, whole: s < 0 });
+      list.push({ kind: "ai", src: "claude", cat: AI_CAT[x.type] || "gram", s: s < 0 ? 0 : s, e: s < 0 ? 0 : s + len, word: x.extrait, msg: x.explication || "", sugg: alts, rule: "claude-" + (x.type || ""), aiKey, cert: x.certitude, whole: s < 0 });
     }
   }
   for (const e of r.gramm) {
@@ -1570,6 +1578,12 @@ function renderIssue(t, i) {
     mk("Ignorer", () => decide(t, i, "ignored"));
     mk("Erreur de lecture", () => decide(t, i, "ocr"), "Le texte à l'image est juste : c'est l'OCR qui a mal lu.");
     if (i.kind === "spell") mk(`Ajouter « ${i.word} » au dictionnaire`, () => { addDict(i.word); });
+    else if (i.src === "claude") mk("Ne plus proposer cette correction", () => {
+      // seulement cette suggestion précise (même extrait, même remplacement), pas toutes les remarques du même type
+      S.ignoredAi.add(i.aiKey); store.set("ignoredAi", [...S.ignoredAi]);
+      S.tracks.forEach((tt) => (tt.issues = tt.issues.filter((x) => !(x.src === "claude" && x.aiKey === i.aiKey && x.status === "pending"))));
+      renderAll(); toast("Cette correction ne sera plus proposée.");
+    }, `Masque « ${i.word} » → « ${(i.sugg && i.sugg[0]) || ""} » partout, maintenant et aux prochaines analyses.`);
     else mk("Ignorer cette règle partout", () => { S.ignoredRules.add(i.rule); store.set("ignoredRules", [...S.ignoredRules]); S.tracks.forEach((tt) => (tt.issues = tt.issues.filter((x) => !(x.rule === i.rule && x.status === "pending")))); renderAll(); toast("Règle ignorée pour les prochaines analyses aussi."); });
     if (t.example) $$("button,input", d).forEach((b) => (b.disabled = true));
     d.appendChild(ac);
